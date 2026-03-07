@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Locked In</title>
+
+  <!-- If styles.css doesn't exist yet, we have added minimal styling here to ensure it looks clean -->
+  <link rel="stylesheet" href="../Assets/styles.css" />
+  
+  <!-- PDF.js for client-side PDF text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <!-- Mammoth.js for client-side DOCX text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+  
+  <style>
+    /* Clean base styling for the tool */
+    body { 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        background-color: #f8f9fc; 
+        color: #1a1a2e; 
+        margin: 0; 
+    }
+    .page { max-width: 1000px; margin: 0 auto; padding: 20px; }
+    
+    /* Navbar styling */
+    .nav { 
+        display: flex; justify-content: space-between; align-items: center; 
+        padding: 20px 0; border-bottom: 2px solid #e1e4e8; margin-bottom: 40px; 
+    }
+    .brand { font-size: 24px; font-weight: bold; color: #4361ee; }
+    .navLinks a { 
+        margin: 0 15px; text-decoration: none; color: #4a5568; 
+        font-weight: 500; transition: color 0.2s; 
+    }
+    .navLinks a.active, .navLinks a:hover { color: #4361ee; }
+    
+    /* Hero Section */
+    .hero { text-align: center; margin-bottom: 50px; }
+    .heroTitle { font-size: 2.5rem; margin-bottom: 10px; }
+    .heroSub { font-size: 1.2rem; color: #718096; }
+    
+    /* Layout */
+    .cardWide { 
+        display: flex; gap: 30px; align-items: stretch; background: white; 
+        border-radius: 12px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+    }
+    
+    /* Dropzone styling */
+    .dropzone { 
+        flex: 1; border: 2px dashed #a0aec0; border-radius: 8px; 
+        padding: 50px 20px; text-align: center; cursor: pointer; 
+        transition: all 0.2s ease; display: flex; flex-direction: column; 
+        justify-content: center; align-items: center; min-height: 200px; 
+    }
+    .dropzone:hover, .dropzone.highlight { border-color: #4361ee; background-color: #f0f4ff; }
+    .dzTitle { font-size: 1.5rem; font-weight: bold; margin-bottom: 15px; color: #2d3748; }
+    .dzHint { color: #718096; margin-bottom: 30px; }
+    
+    /* Buttons */
+    .dzFooter { display: flex; gap: 15px; margin-top: auto; }
+    .btn { 
+        padding: 10px 20px; border-radius: 6px; font-weight: bold; 
+        cursor: pointer; border: none; font-size: 1rem; transition: background 0.2s; 
+        text-decoration: none; 
+    }
+    .btn.primary { background-color: #4361ee; color: white; }
+    .btn.primary:hover { background-color: #3f37c9; }
+    .btn.ghost { background-color: transparent; border: 1px solid #cbd5e0; color: #4a5568; }
+    .btn.ghost:hover { background-color: #edf2f7; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    /* File Panel */
+    .filePanel { 
+        flex: 1; background: #f8fafc; border-radius: 8px; 
+        padding: 25px; display: flex; flex-direction: column; 
+    }
+    .panelTop { 
+        display: flex; justify-content: space-between; align-items: center; 
+        margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; 
+    }
+    .panelTitle { font-size: 1.3rem; font-weight: bold; }
+    .panelMeta { 
+        background: #4361ee; color: white; border-radius: 50%; width: 30px; 
+        height: 30px; display: flex; align-items: center; justify-content: center; 
+        font-weight: bold; 
+    }
+    .fileList { flex-grow: 1; overflow-y: auto; max-height: 300px; padding-right: 5px; }
+    .fileItem { 
+        padding: 12px; background: white; border-radius: 6px; 
+        margin-bottom: 10px; display: flex; justify-content: space-between; 
+        align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+    }
+    .fileName { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; font-weight: 500;}
+    .fileStatus { font-size: 0.9rem; }
+    
+    /* Footer */
+    .footerMinimal { text-align: center; padding: 50px 0 20px; color: #a0aec0; font-size: 0.9rem; }
+    
+    @media (max-width: 768px) { .cardWide { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="brand">Locked In</div>
+      <div class="navLinks">
+      </div>
+      <div class="navRight" style="display: flex; gap: 15px; align-items: center;">
+        <select id="themeSelect" class="select tiny" aria-label="Theme" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e0; background: white;">
+          <option value="pink">Pink</option>
+          <option value="mint">Mint</option>
+          <option value="purple">Purple</option>
+        </select>
+        <!-- Place for the Clerk User Button -->
+        <div id="user-button"></div>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <h1 class="heroTitle">Upload your syllabuses</h1>
+      <p class="heroSub">Drop files to extract text instantly. Everything runs securely in your browser before sending.</p>
+    </header>
+
+    <main class="center">
+      <section class="cardWide">
+        <!-- Dropzone Area -->
+        <div id="dropzone" class="dropzone">
+          <input type="file" id="fileInput" multiple hidden accept=".pdf,.doc,.docx,.txt" />
+          
+          <div class="dzTop">
+            <svg style="width: 50px; height: 50px; color: #4361ee; margin-bottom: 15px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg>
+            <div class="dzTitle">Drag & drop or <span style="color: #4361ee; text-decoration: underline;">click to browse</span></div>
+            <div class="dzHint">Supports PDF, DOCX, and TXT files</div>
+          </div>
+
+          <div class="dzFooter">
+            <button class="btn ghost" id="clearBtn">Clear List</button>
+          </div>
+        </div>
+
+        <!-- File Upload List -->
+        <div class="filePanel">
+          <div class="panelTop">
+            <div class="panelTitle">Extracted Files</div>
+            <div class="panelMeta" id="fileCount">0</div>
+          </div>
+          
+          <div class="fileList" id="fileList">
+            <div id="emptyState" style="color: #a0aec0; text-align: center; padding: 40px 0;">
+                No files added yet.<br>Drag some over!
+            </div>
+          </div>
+          
+          <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+            <button class="btn primary" id="uploadBtn" style="display: none; width: 100%;">
+                Send to Backend →
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footerMinimal">Extracting text locally to boost privacy and speed. Replace API endpoint later.</footer>
+  </div>
+
+  <script src="../JS/upload.js"></script>
+  <!-- Initialize Clerk securely using default static script tags -->
+  <script
+    async
+    crossorigin="anonymous"
+    data-clerk-publishable-key="pk_test_bmV3LWFzcC0zMi5jbGVyay5hY2NvdW50cy5kZXYk"
+    src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+    type="text/javascript"
+  ></script>
+
+  <script>
+    window.addEventListener('load', async function () {
+      try {
+        await window.Clerk.load();
+        
+        if (!window.Clerk.user) {
+          // Redirect to login page if user isn't authenticated
+          window.location.replace('./index.html');
+        } else {
+          // Mount the user profile / sign-out button
+          window.Clerk.mountUserButton(document.getElementById('user-button'));
+        }
+      } catch (err) {
+        console.error('Error starting Clerk: ', err);
+      }
+    });
+  </script>
+</body>
+</html>
