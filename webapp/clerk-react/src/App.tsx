@@ -19,7 +19,7 @@ type FileItem = {
 function App() {
   const { getToken } = useAuth();
   const { user } = useUser();
-  
+
   const [filesToUpload, setFilesToUpload] = useState<FileItem[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -33,24 +33,24 @@ function App() {
 
     const processFiles = async () => {
       const itemsToProcess = filesToUpload.filter(item => item.text === null && item.loading && !item.error);
-      
+
       if (itemsToProcess.length === 0) return;
 
       for (const item of itemsToProcess) {
         try {
           const text = await extractText(item.file);
           if (!unmounted) {
-            setFilesToUpload(prev => prev.map(f => 
+            setFilesToUpload(prev => prev.map(f =>
               f.file === item.file ? { ...f, text, loading: false } : f
             ));
-            
+
             // Console logging similar to the original JS
             console.log(`--- Extracted Content of ${item.file.name} ---`);
             console.log(text.substring(0, 500) + (text.length > 500 ? '...\n(truncated)' : ''));
           }
         } catch (err: any) {
           if (!unmounted) {
-            setFilesToUpload(prev => prev.map(f => 
+            setFilesToUpload(prev => prev.map(f =>
               f.file === item.file ? { ...f, error: err.message || "Failed to read", loading: false } : f
             ));
           }
@@ -59,7 +59,7 @@ function App() {
     };
 
     processFiles();
-    
+
     return () => { unmounted = true; }
   }, [filesToUpload]);
 
@@ -75,41 +75,41 @@ function App() {
 
   const extractFromTxt = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target?.result as string);
-        reader.onerror = e => reject(e);
-        reader.readAsText(file);
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target?.result as string);
+      reader.onerror = e => reject(e);
+      reader.readAsText(file);
     });
   }
 
   const extractFromPdf = async (file: File): Promise<string> => {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let fullText = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item: any) => item.str).join(' ');
-          fullText += pageText + '\n';
-      }
-      return fullText;
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+    return fullText;
   }
 
   const extractFromDocx = async (file: File): Promise<string> => {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      return result.value;
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return result.value;
   }
 
   // Handlers
   const handleFiles = (newFiles: FileList | null) => {
     if (!newFiles) return;
     const incoming = Array.from(newFiles).filter(f => f.name.match(/\.(pdf|doc|docx|txt)$/i));
-    
+
     setFilesToUpload(prev => {
       const uniqueNew = incoming.filter(newFile => !prev.some(existing => existing.file.name === newFile.name));
       if (uniqueNew.length === 0) return prev;
-      
+
       const newItems: FileItem[] = uniqueNew.map(file => ({
         file, text: null, loading: true, error: null
       }));
@@ -150,50 +150,63 @@ function App() {
       }
 
       const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       };
 
-      const response = await fetch('http://127.0.0.1:8000/timeline', { 
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify({ syllabi: payload })
+      const response = await fetch('http://127.0.0.1:8000/timeline', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ syllabi: payload })
       });
 
       if (response.ok) {
-          const data = await response.json();
-          alert('Success! Syllabus texts sent.');
-          
-          const backendEvents = data.deadlines || data.events || [];
-          if (Array.isArray(backendEvents) && backendEvents.length > 0) {
-            const normalizedEvents = backendEvents.map((e: any) => ({
-              id: e.id || crypto.randomUUID(),
-              course: e.course || 'Unknown Course',
-              type: e.type || 'Other',
-              title: e.title || 'Unknown Task',
-              date: e.due_date || e.date || new Date().toISOString().slice(0, 10),
-              status: e.status || 'Not started',
-              sourceFile: e.sourceFile || '',
-              points: e.points,
-              weight: e.weight
-            }));
+        const data = await response.json();
+        alert('Success! Syllabus texts sent.' + data.toString());
 
-            const existingEvents = JSON.parse(localStorage.getItem('events') || '[]');
-            const updatedEvents = [...existingEvents, ...normalizedEvents];
-            localStorage.setItem('events', JSON.stringify(updatedEvents));
+
+        const backendEvents = data.deadlines || data.events || [];
+        console.log("Raw backendEvents array:", backendEvents);
+        
+        if (Array.isArray(backendEvents) && backendEvents.length > 0) {
+          const normalizedEvents = backendEvents.map((e: any) => ({
+            id: e.id || Date.now() + Math.random().toString(36).substring(2),
+            course: e.course || 'Unknown Course',
+            type: e.type || 'Other',
+            title: e.title || 'Unknown Task',
+            date: e.due_date || e.date || new Date().toISOString().slice(0, 10),
+            status: e.status || 'Not started',
+            sourceFile: e.sourceFile || '',
+            points: e.points,
+            weight: e.weight
+          }));
+          console.log("Normalized Events before saving:", normalizedEvents);
+
+          let existingEvents = [];
+          try {
+             existingEvents = JSON.parse(localStorage.getItem('events') || '[]');
+             if (!Array.isArray(existingEvents)) throw new Error("Not array");
+          } catch(e) {
+             console.warn("localStorage was corrupted or not an array. Resetting...");
           }
-          setFilesToUpload(prev => prev.filter(f => !readyItems.includes(f)));
-          setHasUploaded(true);
+          const updatedEvents = [...existingEvents, ...normalizedEvents];
+          localStorage.setItem('events', JSON.stringify(updatedEvents));
+          console.log("Successfully saved updatedEvents to localStorage:", updatedEvents);
+        } else {
+             console.warn("Backend events was empty or not an array.");
+        }
+        setFilesToUpload(prev => prev.filter(f => !readyItems.includes(f)));
+        setHasUploaded(true);
       } else {
-          let data;
-          try { data = await response.json(); } catch(e) {}
-          alert(`Error: ${data?.message || 'Failed to send data.'}`);
+        let data;
+        try { data = await response.json(); } catch (e) { }
+        alert(`Error: ${data?.message || 'Failed to send data.'}`);
       }
     } catch (err) {
-        console.error('Error sending items:', err);
-        alert('Check console for the generated output.');
+      console.error('Error sending items:', err);
+      alert('Check console for the generated output.');
     } finally {
-        setIsSending(false);
+      setIsSending(false);
     }
   }
 
@@ -210,14 +223,14 @@ function App() {
       <nav className="nav">
         <div className="brand" style={{ cursor: 'pointer' }} onClick={() => setView('upload')}>Syllabus Timeline</div>
         <div className="navLinks">
-          <button 
-            className={`navBtn ${view === 'upload' ? 'active' : ''}`} 
+          <button
+            className={`navBtn ${view === 'upload' ? 'active' : ''}`}
             onClick={() => setView('upload')}
           >
             Upload
           </button>
-          <button 
-            className={`navBtn ${view === 'timeline' ? 'active' : ''}`} 
+          <button
+            className={`navBtn ${view === 'timeline' ? 'active' : ''}`}
             onClick={() => setView('timeline')}
           >
             Timeline
@@ -225,15 +238,15 @@ function App() {
         </div>
         <div className="navRight">
           <Show when="signed-out">
-             <SignInButton mode="modal">
-                 <button className="btn primary">Sign In</button>
-             </SignInButton>
+            <SignInButton mode="modal">
+              <button className="btn primary">Sign In</button>
+            </SignInButton>
           </Show>
           <Show when="signed-in">
-             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-               <span style={{fontWeight: 500, color: '#4a5568'}}>{user?.fullName}</span>
-               <UserButton />
-             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <span style={{ fontWeight: 500, color: '#4a5568' }}>{user?.fullName}</span>
+              <UserButton />
+            </div>
           </Show>
         </div>
       </nav>
@@ -252,8 +265,8 @@ function App() {
             <main className="center">
               <section className="cardWide">
                 {/* Dropzone Area */}
-                <div 
-                  id="dropzone" 
+                <div
+                  id="dropzone"
                   className={`dropzone ${isDragOver ? 'highlight' : ''}`}
                   onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
                   onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
@@ -265,20 +278,20 @@ function App() {
                     }
                   }}
                 >
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    multiple 
-                    hidden 
-                    accept=".pdf,.doc,.docx,.txt" 
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    multiple
+                    hidden
+                    accept=".pdf,.doc,.docx,.txt"
                     onChange={(e) => handleFiles(e.target.files)}
                   />
-                  
+
                   <div className="dzTop">
-                    <svg style={{width: 50, height: 50, color: '#4361ee', marginBottom: 15}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    <svg style={{ width: 50, height: 50, color: '#4361ee', marginBottom: 15 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                     </svg>
-                    <div className="dzTitle">Drag & drop or <span style={{color: '#4361ee', textDecoration: 'underline'}}>click to browse</span></div>
+                    <div className="dzTitle">Drag & drop or <span style={{ color: '#4361ee', textDecoration: 'underline' }}>click to browse</span></div>
                     <div className="dzHint">Supports PDF, DOCX, and TXT files</div>
                   </div>
 
@@ -293,46 +306,46 @@ function App() {
                     <div className="panelTitle">Extracted Files</div>
                     <div className="panelMeta">{filesToUpload.length}</div>
                   </div>
-                  
+
                   <div className="fileList" id="fileList">
                     {filesToUpload.length === 0 && (
-                      <div style={{color: '#a0aec0', textAlign: 'center', padding: '40px 0'}}>
-                          No files added yet.<br/>Drag some over!
+                      <div style={{ color: '#a0aec0', textAlign: 'center', padding: '40px 0' }}>
+                        No files added yet.<br />Drag some over!
                       </div>
                     )}
-                    
+
                     {filesToUpload.map((item, idx) => (
                       <div className="fileItem" key={idx}>
                         <div>
                           <div className="fileName" title={item.file.name}>{item.file.name}</div>
-                          {item.loading && <span className="fileStatus" style={{color: '#ed8936'}}>⏳ Extracting text...</span>}
-                          {item.error && <span className="fileStatus" style={{color: '#e53e3e'}}>❌ {item.error}</span>}
-                          {!item.loading && !item.error && item.text && <span className="fileStatus" style={{color: '#38a169'}}>✅ Extracted ({formatBytes(item.text.length)} chars)</span>}
+                          {item.loading && <span className="fileStatus" style={{ color: '#ed8936' }}>⏳ Extracting text...</span>}
+                          {item.error && <span className="fileStatus" style={{ color: '#e53e3e' }}>❌ {item.error}</span>}
+                          {!item.loading && !item.error && item.text && <span className="fileStatus" style={{ color: '#38a169' }}>✅ Extracted ({formatBytes(item.text.length)} chars)</span>}
                         </div>
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
-                          style={{background: 'none', border: 'none', cursor: 'pointer', color: '#a0aec0'}}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a0aec0' }}
                         >
-                          <svg style={{width: 20, height: 20}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                          <svg style={{ width: 20, height: 20 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
                           </svg>
                         </button>
                       </div>
                     ))}
                   </div>
-                  
+
                   {filesToUpload.length > 0 && (
-                    <div style={{marginTop: 15, display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                      <button className="btn primary" onClick={handleUpload} disabled={isSending} style={{width: '100%'}}>
-                          {isSending ? 'Sending...' : 'Upload Syllabus →'}
+                    <div style={{ marginTop: 15, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <button className="btn primary" onClick={handleUpload} disabled={isSending} style={{ width: '100%' }}>
+                        {isSending ? 'Sending...' : 'Upload Syllabus →'}
                       </button>
                     </div>
                   )}
 
                   {hasUploaded && (
-                    <div style={{marginTop: 15, borderTop: '1px solid #edf2f7', paddingTop: '15px'}}>
-                      <button className="btn primary" onClick={() => setView('timeline')} style={{width: '100%', background: '#38a169'}}>
-                          View Timeline →
+                    <div style={{ marginTop: 15, borderTop: '1px solid #edf2f7', paddingTop: '15px' }}>
+                      <button className="btn primary" onClick={() => setView('timeline')} style={{ width: '100%', background: '#38a169' }}>
+                        View Timeline →
                       </button>
                     </div>
                   )}
@@ -345,12 +358,12 @@ function App() {
 
       {/* Main App Content - Only visible if logged OUT */}
       <Show when="signed-out">
-        <main className="center" style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh'}}>
-           <h1 style={{fontSize: '2.5rem', marginBottom: '10px', color: '#4361ee'}}>Welcome to Syllabus Timeline</h1>
-           <p style={{fontSize: '1.2rem', color: '#718096', marginBottom: '30px'}}>Please sign in using Clerk to generate your course timeline via text extraction.</p>
-           <SignInButton mode="modal">
-               <button className="btn primary" style={{padding: '15px 30px', fontSize: '1.2rem'}}>Sign In</button>
-           </SignInButton>
+        <main className="center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '10px', color: '#4361ee' }}>Welcome to Syllabus Timeline</h1>
+          <p style={{ fontSize: '1.2rem', color: '#718096', marginBottom: '30px' }}>Please sign in using Clerk to generate your course timeline via text extraction.</p>
+          <SignInButton mode="modal">
+            <button className="btn primary" style={{ padding: '15px 30px', fontSize: '1.2rem' }}>Sign In</button>
+          </SignInButton>
         </main>
       </Show>
 
