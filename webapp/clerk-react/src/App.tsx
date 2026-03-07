@@ -162,9 +162,23 @@ function App() {
       if (response.ok) {
           const data = await response.json();
           alert('Success! Syllabus texts sent.');
-          if (data.events) {
+          
+          const backendEvents = data.deadlines || data.events || [];
+          if (Array.isArray(backendEvents) && backendEvents.length > 0) {
+            const normalizedEvents = backendEvents.map((e: any) => ({
+              id: e.id || crypto.randomUUID(),
+              course: e.course || 'Unknown Course',
+              type: e.type || 'Other',
+              title: e.title || 'Unknown Task',
+              date: e.due_date || e.date || new Date().toISOString().slice(0, 10),
+              status: e.status || 'Not started',
+              sourceFile: e.sourceFile || '',
+              points: e.points,
+              weight: e.weight
+            }));
+
             const existingEvents = JSON.parse(localStorage.getItem('events') || '[]');
-            const updatedEvents = [...existingEvents, ...data.events];
+            const updatedEvents = [...existingEvents, ...normalizedEvents];
             localStorage.setItem('events', JSON.stringify(updatedEvents));
           }
           setFilesToUpload(prev => prev.filter(f => !readyItems.includes(f)));

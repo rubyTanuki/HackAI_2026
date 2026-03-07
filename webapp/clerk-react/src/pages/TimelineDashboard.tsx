@@ -9,6 +9,8 @@ interface TimelineEvent {
   date: string;
   status: 'Not started' | 'In progress' | 'Done';
   sourceFile: string;
+  points?: number;
+  weight?: number;
 }
 
 const TimelineDashboard: React.FC = () => {
@@ -257,6 +259,8 @@ const TimelineDashboard: React.FC = () => {
                     <span className={`badge ${e.status === 'Done' ? 'statusDone' : e.status === 'In progress' ? 'statusProg' : ''}`}>
                       {e.status}
                     </span>
+                    {e.points !== undefined && <span className="badge">Pts: {e.points}</span>}
+                    {e.weight !== undefined && <span className="badge">Wt: {e.weight}%</span>}
                   </div>
                   <div className="cardActions">
                     <button className="smallBtn" onClick={() => setStatus(e.id, 'In progress')}>In progress</button>

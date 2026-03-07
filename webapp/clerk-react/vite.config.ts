@@ -17,13 +17,33 @@ export default defineConfig({
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ 
-              message: 'Success! Mock syllabus received on localhost.',
-              events: [
-                { id: '1', course: 'CS 1337', type: 'Homework', title: 'Array Practice', date: '2026-03-20', status: 'Not started' },
-                { id: '2', course: 'CS 1337', type: 'Exam', title: 'Midterm 1', date: '2026-03-25', status: 'Not started' },
-                { id: '3', course: 'MATH 2414', type: 'Quiz', title: 'Integration', date: '2026-03-22', status: 'In progress' }
-              ]
-            }));
+                deadlines: [
+                  {
+                    course: "CS2305",
+                    title: "Homework 1",
+                    type: "Homework",
+                    due_date: "2026-02-01",
+                    points: 100,
+                    weight: 2.27
+                  },
+                  {
+                    course: "CS2305",
+                    title: "Midterm Exam",
+                    type: "Exam",
+                    due_date: "2026-03-10",
+                    points: 100,
+                    weight: 30.0
+                  },
+                  {
+                    course: "HIST 1301",
+                    title: "Reading Quiz",
+                    type: "Quiz",
+                    due_date: "2026-03-15",
+                    points: 50,
+                    weight: 5.0
+                  }
+                ]
+              }));
             return;
           }
           next();
