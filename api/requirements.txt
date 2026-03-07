@@ -1,5 +1,6 @@
 fastapi
 uvicorn
 pydantic
-pymongo
-google-generativeai
+motor
+PyJWT
+python-dotenv
