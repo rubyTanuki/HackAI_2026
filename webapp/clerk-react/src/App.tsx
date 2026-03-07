@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { Show, SignInButton, SignUpButton, UserButton, useAuth } from '@clerk/react'
+import { Show, SignInButton, UserButton, useAuth, useUser } from '@clerk/react'
 import * as pdfjsLib from 'pdfjs-dist'
 import mammoth from 'mammoth'
 import './App.css'
+import TimelineDashboard from './pages/TimelineDashboard'
 
 // Setup PDF worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -16,10 +17,13 @@ type FileItem = {
 
 function App() {
   const { getToken } = useAuth();
+  const { user } = useUser();
   
   const [filesToUpload, setFilesToUpload] = useState<FileItem[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [hasUploaded, setHasUploaded] = useState(false);
+  const [view, setView] = useState<'upload' | 'timeline'>('upload');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Effect to process files whenever filesToUpload changes and there's work to do
@@ -138,14 +142,16 @@ function App() {
 
     try {
       const token = await getToken();
-      
-      const headers: Record<string, string> = {
-          'Content-Type': 'application/json'
-      };
-      if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-          console.log("Clerk Token Attached.");
+      if (!token) {
+        alert('You must be signed in to upload syllabuses.');
+        setIsSending(false);
+        return;
       }
+
+      const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+      };
 
       const response = await fetch('/api/upload-syllabus', { 
           method: 'POST',
@@ -154,8 +160,15 @@ function App() {
       });
 
       if (response.ok) {
+          const data = await response.json();
           alert('Success! Syllabus texts sent.');
+          if (data.events) {
+            const existingEvents = JSON.parse(localStorage.getItem('events') || '[]');
+            const updatedEvents = [...existingEvents, ...data.events];
+            localStorage.setItem('events', JSON.stringify(updatedEvents));
+          }
           setFilesToUpload(prev => prev.filter(f => !readyItems.includes(f)));
+          setHasUploaded(true);
       } else {
           let data;
           try { data = await response.json(); } catch(e) {}
@@ -180,9 +193,22 @@ function App() {
   return (
     <div className="page">
       <nav className="nav">
-        <div className="brand">Syllabus Timeline</div>
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => setView('upload')}>Syllabus Timeline</div>
+        <div className="navLinks">
+          <button 
+            className={`navBtn ${view === 'upload' ? 'active' : ''}`} 
+            onClick={() => setView('upload')}
+          >
+            Upload
+          </button>
+          <button 
+            className={`navBtn ${view === 'timeline' ? 'active' : ''}`} 
+            onClick={() => setView('timeline')}
+          >
+            Timeline
+          </button>
+        </div>
         <div className="navRight">
-          {/* Automatically shows Sign In when out, and Profile when in */}
           <Show when="signed-out">
              <SignInButton mode="modal">
                  <button className="btn primary">Sign In</button>
@@ -190,7 +216,7 @@ function App() {
           </Show>
           <Show when="signed-in">
              <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-               <span style={{fontWeight: 500}}>Upload</span>
+               <span style={{fontWeight: 500, color: '#4a5568'}}>{user?.fullName}</span>
                <UserButton />
              </div>
           </Show>
@@ -199,93 +225,107 @@ function App() {
 
       {/* Main App Content - Only visible if logged in */}
       <Show when="signed-in">
-        <header className="hero">
-          <h1 className="heroTitle">Upload your syllabuses</h1>
-          <p className="heroSub">Drop files to extract text instantly. Everything runs securely in your browser before sending.</p>
-        </header>
+        {view === 'timeline' ? (
+          <TimelineDashboard />
+        ) : (
+          <>
+            <header className="hero">
+              <h1 className="heroTitle">Upload your syllabuses</h1>
+              <p className="heroSub">Drop files to extract text instantly. Everything runs securely in your browser before sending.</p>
+            </header>
 
-        <main className="center">
-          <section className="cardWide">
-            {/* Dropzone Area */}
-            <div 
-              id="dropzone" 
-              className={`dropzone ${isDragOver ? 'highlight' : ''}`}
-              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
-              onDrop={handleDrop}
-              onClick={(e) => {
-                if ((e.target as HTMLElement).tagName.toLowerCase() !== 'button') {
-                  fileInputRef.current?.click();
-                }
-              }}
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                multiple 
-                hidden 
-                accept=".pdf,.doc,.docx,.txt" 
-                onChange={(e) => handleFiles(e.target.files)}
-              />
-              
-              <div className="dzTop">
-                <svg style={{width: 50, height: 50, color: '#4361ee', marginBottom: 15}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                </svg>
-                <div className="dzTitle">Drag & drop or <span style={{color: '#4361ee', textDecoration: 'underline'}}>click to browse</span></div>
-                <div className="dzHint">Supports PDF, DOCX, and TXT files</div>
-              </div>
-
-              <div className="dzFooter">
-                <button className="btn ghost" onClick={(e) => { e.stopPropagation(); setFilesToUpload([]) }}>Clear List</button>
-              </div>
-            </div>
-
-            {/* File Upload List */}
-            <div className="filePanel">
-              <div className="panelTop">
-                <div className="panelTitle">Extracted Files</div>
-                <div className="panelMeta">{filesToUpload.length}</div>
-              </div>
-              
-              <div className="fileList" id="fileList">
-                {filesToUpload.length === 0 && (
-                  <div style={{color: '#a0aec0', textAlign: 'center', padding: '40px 0'}}>
-                      No files added yet.<br/>Drag some over!
+            <main className="center">
+              <section className="cardWide">
+                {/* Dropzone Area */}
+                <div 
+                  id="dropzone" 
+                  className={`dropzone ${isDragOver ? 'highlight' : ''}`}
+                  onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                  onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+                  onDrop={handleDrop}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).tagName.toLowerCase() !== 'button') {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    multiple 
+                    hidden 
+                    accept=".pdf,.doc,.docx,.txt" 
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                  
+                  <div className="dzTop">
+                    <svg style={{width: 50, height: 50, color: '#4361ee', marginBottom: 15}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <div className="dzTitle">Drag & drop or <span style={{color: '#4361ee', textDecoration: 'underline'}}>click to browse</span></div>
+                    <div className="dzHint">Supports PDF, DOCX, and TXT files</div>
                   </div>
-                )}
-                
-                {filesToUpload.map((item, idx) => (
-                  <div className="fileItem" key={idx}>
-                    <div>
-                      <div className="fileName" title={item.file.name}>{item.file.name}</div>
-                      {item.loading && <span className="fileStatus" style={{color: '#ed8936'}}>⏳ Extracting text...</span>}
-                      {item.error && <span className="fileStatus" style={{color: '#e53e3e'}}>❌ {item.error}</span>}
-                      {!item.loading && !item.error && item.text && <span className="fileStatus" style={{color: '#38a169'}}>✅ Extracted ({formatBytes(item.text.length)} chars)</span>}
-                    </div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
-                      style={{background: 'none', border: 'none', cursor: 'pointer', color: '#a0aec0'}}
-                    >
-                      <svg style={{width: 20, height: 20}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                      </svg>
-                    </button>
+
+                  <div className="dzFooter">
+                    <button className="btn ghost" onClick={(e) => { e.stopPropagation(); setFilesToUpload([]) }}>Clear List</button>
                   </div>
-                ))}
-              </div>
-              
-              {filesToUpload.length > 0 && (
-                <div style={{marginTop: 15, display: 'flex', justifyContent: 'flex-end'}}>
-                  <button className="btn primary" onClick={handleUpload} disabled={isSending} style={{width: '100%'}}>
-                      {isSending ? 'Sending...' : 'Send to Backend →'}
-                  </button>
                 </div>
-              )}
-            </div>
-          </section>
-        </main>
+
+                {/* File Upload List */}
+                <div className="filePanel">
+                  <div className="panelTop">
+                    <div className="panelTitle">Extracted Files</div>
+                    <div className="panelMeta">{filesToUpload.length}</div>
+                  </div>
+                  
+                  <div className="fileList" id="fileList">
+                    {filesToUpload.length === 0 && (
+                      <div style={{color: '#a0aec0', textAlign: 'center', padding: '40px 0'}}>
+                          No files added yet.<br/>Drag some over!
+                      </div>
+                    )}
+                    
+                    {filesToUpload.map((item, idx) => (
+                      <div className="fileItem" key={idx}>
+                        <div>
+                          <div className="fileName" title={item.file.name}>{item.file.name}</div>
+                          {item.loading && <span className="fileStatus" style={{color: '#ed8936'}}>⏳ Extracting text...</span>}
+                          {item.error && <span className="fileStatus" style={{color: '#e53e3e'}}>❌ {item.error}</span>}
+                          {!item.loading && !item.error && item.text && <span className="fileStatus" style={{color: '#38a169'}}>✅ Extracted ({formatBytes(item.text.length)} chars)</span>}
+                        </div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
+                          style={{background: 'none', border: 'none', cursor: 'pointer', color: '#a0aec0'}}
+                        >
+                          <svg style={{width: 20, height: 20}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {filesToUpload.length > 0 && (
+                    <div style={{marginTop: 15, display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                      <button className="btn primary" onClick={handleUpload} disabled={isSending} style={{width: '100%'}}>
+                          {isSending ? 'Sending...' : 'Upload Syllabus →'}
+                      </button>
+                    </div>
+                  )}
+
+                  {hasUploaded && (
+                    <div style={{marginTop: 15, borderTop: '1px solid #edf2f7', paddingTop: '15px'}}>
+                      <button className="btn primary" onClick={() => setView('timeline')} style={{width: '100%', background: '#38a169'}}>
+                          View Timeline →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </main>
+          </>
+        )}
       </Show>
 
       {/* Main App Content - Only visible if logged OUT */}
@@ -294,7 +334,7 @@ function App() {
            <h1 style={{fontSize: '2.5rem', marginBottom: '10px', color: '#4361ee'}}>Welcome to Syllabus Timeline</h1>
            <p style={{fontSize: '1.2rem', color: '#718096', marginBottom: '30px'}}>Please sign in using Clerk to generate your course timeline via text extraction.</p>
            <SignInButton mode="modal">
-               <button className="btn primary" style={{padding: '15px 30px', fontSize: '1.2rem'}}>Authenticate Now</button>
+               <button className="btn primary" style={{padding: '15px 30px', fontSize: '1.2rem'}}>Sign In</button>
            </SignInButton>
         </main>
       </Show>
