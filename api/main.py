@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.security import HTTPBearer
+from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 
@@ -11,6 +12,15 @@ from models import TimelineRequest, TimelineResponse, Deadline
 from gemini import GeminiClient
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 security = HTTPBearer()
 
 gemini = GeminiClient()

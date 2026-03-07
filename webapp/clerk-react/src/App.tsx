@@ -5,8 +5,9 @@ import mammoth from 'mammoth'
 import './App.css'
 import TimelineDashboard from './pages/TimelineDashboard'
 
-// Setup PDF worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Setup PDF worker for Vite
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 type FileItem = {
   file: File;
@@ -153,10 +154,10 @@ function App() {
           'Authorization': `Bearer ${token}`
       };
 
-      const response = await fetch('/api/upload-syllabus', { 
+      const response = await fetch('http://127.0.0.1:8000/timeline', { 
           method: 'POST',
           headers: headers,
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ syllabi: payload })
       });
 
       if (response.ok) {

@@ -55,23 +55,23 @@ clearBtn.addEventListener('click', (e) => {
 // ---------------------------
 async function handleFiles(files) {
     const newArr = Array.from(files);
-    
+
     for (let file of newArr) {
         if (file.name.match(/\.(pdf|doc|docx|txt)$/i)) {
             // Check if file is already added
             if (filesToUpload.find(f => f.file.name === file.name)) continue;
-            
-            filesToUpload.push({ 
-                file, 
-                text: null, 
-                loading: true, 
-                error: null 
+
+            filesToUpload.push({
+                file,
+                text: null,
+                loading: true,
+                error: null
             });
         } else {
             alert(`Unsupported file type: ${file.name}`);
         }
     }
-    
+
     renderFileList();
 
     // Begin extracting text concurrently for new files
@@ -86,13 +86,13 @@ async function handleFiles(files) {
             } finally {
                 item.loading = false;
                 renderFileList();
-                
+
                 // Logging the array of strings (for testing)
                 if (item.text) {
                     console.log(`--- Extracted Content of ${item.file.name} ---`);
                     console.log(item.text.substring(0, 500) + (item.text.length > 500 ? '...\n(truncated for console)' : ''));
                     console.log("-----------------------------------------");
-                    
+
                     // Show current payload structure as requested
                     const payloadStrings = filesToUpload.filter(f => f.text).map(f => f.text);
                     console.log("Current JSON List of Strings ready to send:", JSON.stringify(payloadStrings));
@@ -105,27 +105,27 @@ async function handleFiles(files) {
 // Update the UI
 function renderFileList() {
     fileCount.textContent = filesToUpload.length;
-    
+
     if (filesToUpload.length === 0) {
         if (emptyState) emptyState.style.display = 'block';
         uploadBtn.style.display = 'none';
-        
+
         // Remove file items
         const items = fileList.querySelectorAll('.fileItem');
         items.forEach(el => el.remove());
         return;
     }
-    
+
     if (emptyState) emptyState.style.display = 'none';
     uploadBtn.style.display = 'inline-block';
 
     const items = fileList.querySelectorAll('.fileItem');
     items.forEach(el => el.remove());
-    
+
     filesToUpload.forEach((item, index) => {
         const el = document.createElement('div');
         el.className = 'fileItem';
-        
+
         // Create labels based on current stat
         let status = '';
         if (item.loading) {
@@ -138,7 +138,7 @@ function renderFileList() {
 
         const infoDiv = document.createElement('div');
         infoDiv.innerHTML = `<div class="fileName" title="${item.file.name}">${item.file.name}</div>${status}`;
-        
+
         const removeBtn = document.createElement('button');
         removeBtn.innerHTML = `
             <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,7 +155,7 @@ function renderFileList() {
         };
         removeBtn.onmouseenter = () => removeBtn.style.color = '#e53e3e';
         removeBtn.onmouseleave = () => removeBtn.style.color = '#a0aec0';
-        
+
         el.appendChild(infoDiv);
         el.appendChild(removeBtn);
         fileList.appendChild(el);
@@ -176,7 +176,7 @@ function formatBytes(bytes) {
 // ---------------------------
 async function extractText(file) {
     const name = file.name.toLowerCase();
-    
+
     if (name.endsWith('.txt')) {
         return await extractFromTxt(file);
     } else if (name.endsWith('.pdf')) {
@@ -186,7 +186,7 @@ async function extractText(file) {
     } else if (name.endsWith('.doc')) {
         throw new Error('.doc files are harder to parse directly. Try using .docx or .pdf');
     }
-    
+
     throw new Error('Unsupported format for text extraction');
 }
 
@@ -201,18 +201,18 @@ function extractFromTxt(file) {
 
 async function extractFromPdf(file) {
     if (!window.pdfjsLib) throw new Error("PDF.js library failed to load");
-    
+
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
-    
+
     for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items.map(item => item.str).join(' ');
         fullText += pageText + '\n';
     }
-    
+
     return fullText;
 }
 
@@ -230,9 +230,9 @@ async function extractFromDocx(file) {
 // ---------------------------
 uploadBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    
+
     const readyItems = filesToUpload.filter(f => !f.loading && !f.error && f.text);
-    
+
     if (readyItems.length === 0) {
         alert('No files are fully extracted or ready to upload yet.');
         return;
@@ -267,10 +267,10 @@ uploadBtn.addEventListener('click', async (e) => {
         }
 
         // Dummy backend endpoint
-        const response = await fetch('/api/upload-syllabus', { 
+        const response = await fetch('http://127.0.0.1:8000/timeline', {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ syllabi: payload })
         });
 
         if (response.ok) {
@@ -279,7 +279,7 @@ uploadBtn.addEventListener('click', async (e) => {
             renderFileList();
         } else {
             let data;
-            try { data = await response.json(); } catch(e) {}
+            try { data = await response.json(); } catch (e) { }
             alert(`Error: ${data?.message || 'Failed to send data.'}`);
         }
     } catch (err) {
