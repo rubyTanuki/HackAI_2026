@@ -5,6 +5,11 @@ import mammoth from 'mammoth'
 import './App.css'
 import TimelineDashboard from './pages/TimelineDashboard'
 import MatchTest from './pages/MatchTest'
+import StudyPlanPage from './pages/StudyPlanPage'
+import AvailabilityQuiz from './pages/AvailabilityQuiz'
+import { 
+  Loader2
+} from 'lucide-react'
 
 // Setup PDF worker for Vite
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -25,11 +30,24 @@ function App() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [hasUploaded, setHasUploaded] = useState(false);
-  const [view, setView] = useState<'upload' | 'timeline' | 'match'>('upload');
+  const [view, setView] = useState<'upload' | 'timeline' | 'match' | 'studyplan' | 'quiz'>('upload');
+  const [showStudyDropdown, setShowStudyDropdown] = useState(false);
+  const [hasCompletedQuiz, setHasCompletedQuiz] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (window.location.hash === '#match') setView('match');
+    
+    // Check if quiz is completed
+    const completed = localStorage.getItem('hasCompletedQuiz') === 'true';
+    setHasCompletedQuiz(completed);
+
+    // Listen for storage changes (if quiz is in another tab/route)
+    const handleStorage = () => {
+      setHasCompletedQuiz(localStorage.getItem('hasCompletedQuiz') === 'true');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   // Effect to process files whenever filesToUpload changes and there's work to do
@@ -223,10 +241,41 @@ function App() {
   return (
     <div className="page">
       <nav className="nav">
-        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => setView('upload')}>Locked In</div>
-        <div className="navLinks">
-          {/* Navigation removed per request to prevent flip-flopping */}
+        <div className="navLeft">
+          <div className="brand" onClick={() => setView('upload')}>LOCKED IN</div>
+          
+          {hasCompletedQuiz && (
+            <div className="navItems">
+              <button 
+                className={`navLink ${view === 'studyplan' ? 'active' : ''}`}
+                onClick={() => setView('studyplan')}
+              >
+                🏠 Home
+              </button>
+              
+              <div 
+                className="dropdown"
+                onMouseEnter={() => setShowStudyDropdown(true)}
+                onMouseLeave={() => setShowStudyDropdown(false)}
+              >
+                <button className={`navLink ${view === 'match' ? 'active' : ''}`}>
+                  📚 Study ▾
+                </button>
+                {showStudyDropdown && (
+                  <div className="dropdownContent">
+                    <button onClick={() => { setView('match'); setShowStudyDropdown(false); }}>
+                      🏆 Ranked Mode
+                    </button>
+                    <button onClick={() => { console.log('Solo mode coming soon'); setShowStudyDropdown(false); }}>
+                      🧘 Solo
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
         <div className="navRight">
           <Show when="signed-out">
             <SignInButton mode="modal">
@@ -234,8 +283,8 @@ function App() {
             </SignInButton>
           </Show>
           <Show when="signed-in">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <span style={{ fontWeight: 500, color: 'rgba(255,255,255,.70)' }}>{user?.fullName}</span>
+            <div className="userProfile">
+              <span className="userName">{user?.fullName}</span>
               <UserButton />
             </div>
           </Show>
@@ -247,7 +296,15 @@ function App() {
         {view === 'match' ? (
           <MatchTest />
         ) : view === 'timeline' ? (
-          <TimelineDashboard view={view} />
+          <TimelineDashboard view={view} onNavigateToQuiz={() => setView('quiz')} />
+        ) : view === 'studyplan' ? (
+          <StudyPlanPage />
+        ) : view === 'quiz' ? (
+          <AvailabilityQuiz onComplete={() => {
+            localStorage.setItem('hasCompletedQuiz', 'true');
+            setHasCompletedQuiz(true);
+            setView('studyplan');
+          }} />
         ) : (
           <>
             <header className="hero">

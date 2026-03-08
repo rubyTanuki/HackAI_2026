@@ -23,7 +23,7 @@ const HOUR_OPTIONS = [
   { value: 4, label: "4+ hrs" },
 ];
 
-export default function AvailabilityQuiz() {
+export default function AvailabilityQuiz({ onComplete }: { onComplete?: () => void }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(0); // 0=intro, 1=days, 2=timeslots, 3=hours
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
@@ -40,6 +40,11 @@ export default function AvailabilityQuiz() {
   }
 
   function handleSave() {
+    localStorage.setItem('hasCompletedQuiz', 'true');
+    if (onComplete) {
+      onComplete();
+      return;
+    }
     // Navigate to StudyPlan passing these quiz preferences
     navigate("/study-plan", {
       state: {

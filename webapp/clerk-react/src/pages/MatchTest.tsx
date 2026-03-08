@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useAuth } from "@clerk/react";
 import "./MatchTest.css";
 
@@ -16,8 +16,9 @@ type QuizData = {
 export default function MatchTest() {
   const { getToken } = useAuth();
 
-  const [coursePrefix, setCoursePrefix] = useState("MATH");
-  const [courseCode, setCourseCode] = useState("3345");
+  const [courses, setCourses] = useState<any[]>([]);
+  const [selectedCourseStr, setSelectedCourseStr] = useState<string>("");
+
   const [matchId, setMatchId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("Not Queued");
   const [quizData, setQuizData] = useState<QuizData | null>(null);
@@ -37,7 +38,36 @@ export default function MatchTest() {
     };
   };
 
+  const fetchCourses = async () => {
+    try {
+      const res = await fetch(`http://localhost:8001/user/courses`, {
+        headers: await getHeaders(),
+      });
+      const data = await res.json();
+      if (data.courses) {
+        setCourses(data.courses);
+        if (data.courses.length > 0) {
+          const first = data.courses[0];
+          setSelectedCourseStr(`${first.course_prefix}-${first.course_code}`);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch courses", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
   const handleQueue = async () => {
+    if (!selectedCourseStr) {
+      alert("Please select a course first (ensure you've uploaded a syllabus)");
+      return;
+    }
+
+    const [prefix, code] = selectedCourseStr.split("-");
+
     try {
       setStatus("Joining Queue...");
       setResults(null);
@@ -45,12 +75,12 @@ export default function MatchTest() {
       setSelectedAnswers({});
       setScore(0);
 
-      const res = await fetch(`http://localhost:8000/match/queue`, {
+      const res = await fetch(`http://localhost:8001/match/queue`, {
         method: "POST",
         headers: await getHeaders(),
         body: JSON.stringify({
-          course_prefix: coursePrefix,
-          course_code: courseCode,
+          course_prefix: prefix,
+          course_code: code,
         }),
       });
 
@@ -70,7 +100,7 @@ export default function MatchTest() {
     if (!matchId) return;
 
     try {
-      await fetch(`http://localhost:8000/match/${matchId}`, {
+      await fetch(`http://localhost:8001/match/${matchId}`, {
         method: "DELETE",
         headers: await getHeaders(),
       });
@@ -92,7 +122,7 @@ export default function MatchTest() {
 
     pollingInterval.current = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:8000/match/${id}/status`, {
+        const res = await fetch(`http://localhost:8001/match/${id}/status`, {
           headers: await getHeaders(),
         });
         const data = await res.json();
@@ -110,7 +140,7 @@ export default function MatchTest() {
 
   const fetchQuiz = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/match/${id}/quiz`, {
+      const res = await fetch(`http://localhost:8001/match/${id}/quiz`, {
         headers: await getHeaders(),
       });
       const data = await res.json();
@@ -125,7 +155,7 @@ export default function MatchTest() {
 
     try {
       setStatus("Score Submitted, waiting for opponent...");
-      await fetch(`http://localhost:8000/match/${matchId}/submit`, {
+      await fetch(`http://localhost:8001/match/${matchId}/submit`, {
         method: "POST",
         headers: await getHeaders(),
         body: JSON.stringify({ score }),
@@ -141,7 +171,7 @@ export default function MatchTest() {
 
     pollingInterval.current = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:8000/match/${id}/results`, {
+        const res = await fetch(`http://localhost:8001/match/${id}/results`, {
           headers: await getHeaders(),
         });
         const data = await res.json();
@@ -160,7 +190,7 @@ export default function MatchTest() {
 
   const fetchRankChange = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/match/${id}/rank`, {
+      const res = await fetch(`http://localhost:8001/match/${id}/rank`, {
         headers: await getHeaders(),
       });
       const rankData = await res.json();
@@ -229,20 +259,25 @@ export default function MatchTest() {
           </div>
 
           <div className="mt-input-row">
-            <input
-              className="mt-input"
-              value={coursePrefix}
-              onChange={(e) => setCoursePrefix(e.target.value)}
-              placeholder="Prefix (MATH)"
-              disabled={status !== "Not Queued" && status !== "Error"}
-            />
-            <input
-              className="mt-input"
-              value={courseCode}
-              onChange={(e) => setCourseCode(e.target.value)}
-              placeholder="Code (3345)"
-              disabled={status !== "Not Queued" && status !== "Error"}
-            />
+            {courses.length === 0 ? (
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.9rem", padding: "0.5rem" }}>
+                No courses found. Try uploading a syllabus in the Timeline!
+              </p>
+            ) : (
+              <select
+                className="mt-input"
+                style={{ appearance: "auto" }}
+                value={selectedCourseStr}
+                onChange={(e) => setSelectedCourseStr(e.target.value)}
+                disabled={status !== "Not Queued" && status !== "Error"}
+              >
+                {courses.map((c: any, idx) => (
+                  <option key={idx} value={`${c.course_prefix}-${c.course_code}`}>
+                    {c.course_prefix} {c.course_code} {c.course_name ? `- ${c.course_name}` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="mt-action-row">
@@ -265,7 +300,9 @@ export default function MatchTest() {
             <div className="mt-player-avatar">Y</div>
             <div className="mt-player-meta">
               <div className="mt-player-name">You</div>
-              <div className="mt-player-rank">Queued for {coursePrefix} {courseCode}</div>
+              <div className="mt-player-rank">
+                Queued for {selectedCourseStr ? selectedCourseStr.replace("-", " ") : "..."}
+              </div>
             </div>
           </div>
 

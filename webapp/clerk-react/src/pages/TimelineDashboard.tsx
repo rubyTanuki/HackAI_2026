@@ -120,9 +120,10 @@ function extractEventsFromResponse(data: any): any[] {
 
 interface TimelineDashboardProps {
   view: string;
+  onNavigateToQuiz?: () => void;
 }
 
-const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
+const TimelineDashboard: FC<TimelineDashboardProps> = ({ view, onNavigateToQuiz }) => {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
   const [selectedType, setSelectedType] = useState('all');
@@ -291,7 +292,7 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
           </button>
           
           <button
-            onClick={() => navigate('/availability-quiz')}
+            onClick={() => onNavigateToQuiz ? onNavigateToQuiz() : navigate('/availability-quiz')}
             style={{
               background: 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',
               color: '#12131a',
