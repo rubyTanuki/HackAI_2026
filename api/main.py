@@ -432,7 +432,7 @@ async def match_quiz_endpoint(match_id: str, user_id: str = Depends(verify_token
             topic_name = random.choice(topics).get("name")
             
     if match.get("mode") == "memory":
-        memory_data = await gemini.generate_memory_cards(topic=topic_name, course=course_name, pairs=4)
+        memory_data = await gemini.generate_memory_cards(topic=topic_name, course=course_name, pairs=3)
         if not memory_data or "error" in memory_data:
             raise HTTPException(status_code=500, detail="Failed to generate match cards")
         

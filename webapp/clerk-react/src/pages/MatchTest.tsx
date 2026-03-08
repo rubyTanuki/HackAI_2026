@@ -542,9 +542,9 @@ export default function MatchTest() {
 
                   <div style={{ 
                     display: "grid", 
-                    gridTemplateColumns: "repeat(4, 1fr)", 
+                    gridTemplateColumns: "repeat(3, 1fr)", 
                     gap: "16px",
-                    maxWidth: "800px",
+                    maxWidth: "600px",
                     margin: "0 auto"
                   }}>
                     {quizData.board.map((card: any) => {
@@ -582,10 +582,12 @@ export default function MatchTest() {
                             background: showContent
                               ? "radial-gradient(circle at top left, rgba(88,196,255,0.15), transparent 70%), radial-gradient(circle at bottom right, rgba(255,91,204,0.15), transparent 70%), linear-gradient(180deg, #1e1e24 0%, #12131a 100%)"
                               : "rgba(255,255,255,0.03)",
-                            color: showContent ? "#ffffff" : "transparent",
-                            fontSize: showContent ? "1.05rem" : "0",
+                            color: "#ffffff",
+                            opacity: showContent ? 1 : 0.4,
+                            fontSize: "0.9rem",
                             cursor: isMatched || quizData.turn !== userId ? "default" : "pointer",
                             boxShadow: showContent ? "0 8px 16px rgba(0,0,0,0.3)" : "none",
+                            transition: "all 0.3s ease",
                           }}
                         >
                           {showContent ? card.text : "?"}
