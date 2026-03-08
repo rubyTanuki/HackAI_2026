@@ -17,8 +17,8 @@ class Deadline(BaseModel):
     weight: float
 
 class TimelineRequest(BaseModel):
-    syllabi: List[str]
-    courses: List[str]
+    syllabi: List[str] = []
+    courses: List[str] = []
 
 class TimelineResponse(BaseModel):
     deadlines: List[Deadline]
