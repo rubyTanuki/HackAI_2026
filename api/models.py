@@ -22,6 +22,7 @@ class TimelineRequest(BaseModel):
 
 class TimelineResponse(BaseModel):
     deadlines: List[Deadline]
+    courses: List[str] = []
 
 class MatchQueueRequest(BaseModel):
     course_prefix: str

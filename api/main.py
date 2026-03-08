@@ -193,26 +193,76 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
             for d in new_deadlines:
                 all_deadlines.append(Deadline(**d))
 
+    update_ops = {
+        "$setOnInsert": {
+            "leaderboard_rank": 0,
+            "elo": {"global_avg": 500},
+            "study_plan": {
+                "generated_on": None,
+                "tasks": []
+            }
+        }
+    }
+    
+    add_to_set = {}
     if all_syllabus_hashes:
-        await users_collection.update_one(
-            {"_id": user_id},
-            {
-                "$setOnInsert": {
-                    "leaderboard_rank": 0,
-                    "elo": {"global_avg": 500},
-                    "study_plan": {
-                        "generated_on": None,
-                        "tasks": []
-                    }
-                },
-                "$addToSet": {
-                    "enrolled_syllabi": {"$each": all_syllabus_hashes}
-                }
-            },
-            upsert=True
-        )
+        add_to_set["enrolled_syllabi"] = {"$each": all_syllabus_hashes}
+    if request.courses:
+        add_to_set["courses"] = {"$each": request.courses}
+    
+    if add_to_set:
+        update_ops["$addToSet"] = add_to_set
+        
+    await users_collection.update_one(
+        {"_id": user_id},
+        update_ops,
+        upsert=True
+    )
 
-    return TimelineResponse(deadlines=all_deadlines)
+    return TimelineResponse(deadlines=all_deadlines, courses=request.courses)
+
+@app.get("/user/courses")
+async def get_user_courses(user_id: str = Depends(verify_token)):
+    user_doc = await users_collection.find_one({"_id": user_id})
+    if not user_doc:
+        return {"courses": []}
+    
+    course_list = []
+    seen = set()
+    
+    # 1. Get courses from processed syllabi
+    enrolled_syllabi = user_doc.get("enrolled_syllabi", [])
+    for sid in enrolled_syllabi:
+        doc = await syllabi_collection.find_one({"_id": sid})
+        if doc:
+            prefix = doc.get("course_prefix", "Unknown")
+            code = doc.get("course_code", "0000")
+            key = f"{prefix}-{code}"
+            if key not in seen:
+                course_list.append({
+                    "course_prefix": prefix,
+                    "course_code": code,
+                    "course_name": doc.get("course_name", "")
+                })
+                seen.add(key)
+    
+    # 2. Get courses from manual entries
+    manual_courses = user_doc.get("courses", [])
+    for course_str in manual_courses:
+        match = re.search(r"([A-Za-z]+)[\s-]*(\d{4})", course_str)
+        if match:
+            prefix = match.group(1).upper()
+            code = match.group(2)
+            key = f"{prefix}-{code}"
+            if key not in seen:
+                course_list.append({
+                    "course_prefix": prefix,
+                    "course_code": code,
+                    "course_name": ""
+                })
+                seen.add(key)
+                
+    return {"courses": course_list}
 
 
 @app.post("/study_plan")
