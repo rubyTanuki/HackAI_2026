@@ -355,7 +355,7 @@ export default function StudyPlanPage() {
                       onClick={() => setSelectedDate(day)}
                       className={`sp-day-cell ${
                         inMonth ? "sp-day-in-month" : "sp-day-out-month"
-                      } ${isSelected ? "sp-day-selected" : ""}`}
+                      } ${isSelected ? "sp-day-selected" : ""} ${dayTasks.length > 0 ? "has-events" : ""}`}
                     >
                       <div className="sp-day-top">
                         <span

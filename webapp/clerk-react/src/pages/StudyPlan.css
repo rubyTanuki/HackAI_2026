@@ -691,30 +691,257 @@
 
 @media (max-width: 640px) {
   .sp-container {
-    padding: 1rem;
+    padding: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top, rgba(88, 196, 255, 0.1), transparent 35%),
+      linear-gradient(180deg, #12131a 0%, #0e0e12 100%);
   }
 
-  .sp-title {
-    font-size: 1.65rem;
-    line-height: 2rem;
+  .sp-max-width {
+    max-width: 414px;
+    margin: 0 auto;
+    background: transparent;
   }
 
-  .sp-calendar-card,
-  .sp-sidebar-card,
-  .sp-stat-card {
-    padding: 1rem;
+  /* Sticky Dark Header */
+  .sp-header-row {
+    background: rgba(18, 19, 26, 0.95);
+    height: 60px;
+    margin-bottom: 0;
+    padding: 0 16px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .sp-title, .sp-stats-grid, .sp-subtitle, .sp-back-badge {
+    display: none !important;
+  }
+
+  /* Alternate Mobile Header Content */
+  .sp-mobile-header-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 91, 204, 0.2);
+    border: 2px solid #ff5bcc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(255, 91, 204, 0.3);
+    color: #ff5bcc;
+  }
+
+  /* Calendar Reform - DARK */
+  .sp-calendar-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 0;
+    border: none;
+    padding: 16px;
+    margin-bottom: 24px;
+    box-shadow: none;
+    backdrop-filter: blur(10px);
+  }
+
+  .sp-calendar-header {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sp-month-label h2 {
+    font-size: 1.25rem;
+    color: #ffffff;
+    margin: 4px 0 0;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  }
+
+  .sp-month-label p {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.4);
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .sp-nav-button {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+  }
+
+  /* Circular Grid Items */
+  .sp-days-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 8px;
+    gap: 4px;
+  }
+
+  .sp-day-name {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: center;
   }
 
   .sp-calendar-grid {
-    gap: 0.375rem;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-top: 12px;
   }
 
   .sp-day-cell {
-    min-height: 82px;
-    padding: 0.5rem;
+    min-height: 48px;
+    aspect-ratio: 1/1;
+    border-radius: 50% !important;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid transparent !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    position: relative;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .sp-day-in-month {
+    color: #ffffff;
+  }
+
+  .sp-day-out-month {
+    color: rgba(255, 255, 255, 0.2);
+  }
+
+  .sp-day-number {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .sp-day-number.today {
+    background: rgba(88, 196, 255, 0.2) !important;
+    color: #58c4ff !important;
+    border: 1px solid #58c4ff;
+    box-shadow: 0 0 10px rgba(88, 196, 255, 0.3);
+  }
+
+  .sp-day-badge, .sp-task-list, .sp-day-load {
+    display: none !important;
+  }
+
+  .sp-day-cell.has-events::after {
+    content: '';
+    position: absolute;
+    bottom: 6px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #ff5bcc;
+    box-shadow: 0 0 5px #ff5bcc;
+  }
+
+  .sp-day-selected .sp-day-number {
+    background: #ff5bcc !important;
+    color: #fff !important;
+    box-shadow: 0 0 15px rgba(255, 91, 204, 0.5);
+  }
+
+  /* Vertical Event List Reform */
+  .sp-layout-grid {
+    display: block;
+    padding: 0 16px;
+  }
+
+  .sp-sidebar {
+    gap: 16px;
+  }
+
+  .sp-sidebar-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    backdrop-filter: none;
+  }
+
+  .sp-sidebar-header {
+    margin-bottom: 16px;
+  }
+
+  .sp-sidebar-header h3 {
+    font-size: 1.1rem;
+    color: #ffffff;
+  }
+
+  .sp-sidebar-header p {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.4);
   }
 
   .sp-upcoming-task {
-    align-items: flex-start;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 6px solid #ff5bcc;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px !important;
+    display: flex;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between;
+    backdrop-filter: blur(5px);
+  }
+
+  .sp-upcoming-task-title {
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .sp-upcoming-task-meta {
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.75rem;
+  }
+
+  .sp-upcoming-task-duration {
+    background: rgba(88, 196, 255, 0.15) !important;
+    color: #58c4ff !important;
+    border: 1px solid rgba(88, 196, 255, 0.3);
+    margin-left: 12px;
+  }
+
+  .sp-sidebar-content {
+    gap: 0;
+  }
+
+  .sp-total-badge {
+    background: rgba(253, 202, 64, 0.1) !important;
+    border-color: rgba(253, 202, 64, 0.3) !important;
+  }
+
+  .sp-total-badge .value {
+    color: #ffd28d !important;
   }
 }

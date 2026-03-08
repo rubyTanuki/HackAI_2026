@@ -29,35 +29,6 @@ function typeToClass(type: string): string {
   }
 }
 
-function typeEmoji(type: string): string {
-  switch (type) {
-    case 'Homework': return '📝';
-    case 'Quiz': return '❓';
-    case 'Exam': return '🧪';
-    case 'Project': return '🚀';
-    case 'Reading': return '📖';
-    default: return '📌';
-  }
-}
-
-function getRelativeDate(dateStr: string): { label: string; daysAway: number } {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  const target = new Date(dateStr);
-  if (isNaN(target.getTime())) {
-    return { label: 'Invalid date', daysAway: 9999 };
-  }
-
-  target.setHours(0, 0, 0, 0);
-  const diff = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diff === 0) return { label: 'Today', daysAway: 0 };
-  if (diff === 1) return { label: 'Tomorrow', daysAway: 1 };
-  if (diff === -1) return { label: 'Yesterday', daysAway: -1 };
-  if (diff > 1) return { label: `in ${diff} days`, daysAway: diff };
-  return { label: `${Math.abs(diff)} days ago`, daysAway: diff };
-}
 
 function normalizeType(type: string): string {
   const t = (type || '').toLowerCase();
@@ -224,12 +195,6 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view, onNavigateToQuiz 
     setStatus(id, nextStatus);
   };
 
-  const removeEvent = async (id: string) => {
-    const updated = events.filter(e => e.id !== id);
-    setEvents(updated);
-    localStorage.setItem('events', JSON.stringify(updated));
-
-  };
 
   const filteredEvents = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -431,37 +396,23 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view, onNavigateToQuiz 
                   <summary className="monthLabel">
                     <span className="monthLabelText">{month}</span>
                   </summary>
-                  <div className="monthContent">
-                    {evs.map((e, i) => {
-                      const { label: countdownLabel, daysAway } = getRelativeDate(e.date);
-                      const typeClass = typeToClass(e.type);
-                      const isOverdue = daysAway < 0 && e.status !== 'Done';
-                      const isDueSoon = daysAway >= 0 && daysAway <= 3 && e.status !== 'Done';
+                    <div className="monthContent">
+                      {evs.map((e, i) => {
+                        const typeClass = typeToClass(e.type);
 
                       return (
                         <div key={e.id} className={`item ${i % 2 === 0 ? 'left' : 'right'}`}>
                           <div className={`card ${typeClass}`}>
                             <div className="cardTop">
                               <div className="cardTitle">
-                                {typeEmoji(e.type)} {e.course} — {e.title}
+                                {e.course} — {e.title}
                               </div>
                               <div className="cardMeta">{e.date}</div>
                             </div>
-                            <div className="badges">
-                              <span className="badge">{e.type}</span>
-                              <span className={`badge ${e.status === 'Done' ? 'statusDone' : e.status === 'In progress' ? 'statusProg' : ''}`}>
-                                {e.status}
-                              </span>
-                              {isOverdue && <span className="badge urgentOverdue">⚠ Overdue</span>}
-                              {isDueSoon && <span className="badge urgentSoon">🔥 Due Soon</span>}
-                              <span className="countdown">{countdownLabel}</span>
-                            </div>
-                            <div className="cardActions">
-                              <button className="smallBtn" onClick={() => setStatus(e.id, 'In progress')}>In progress</button>
+                            <div className="cardActions" style={{ marginTop: 'auto' }}>
                               <button className="smallBtn" onClick={() => toggleStatus(e.id, e.status)}>
                                 {e.status === 'Done' ? 'Undo' : 'Done'}
                               </button>
-                              <button className="smallBtn danger" onClick={() => removeEvent(e.id)}>Delete</button>
                             </div>
                           </div>
                         </div>
@@ -472,33 +423,21 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view, onNavigateToQuiz 
               ))
             ) : (
               filteredEvents.map((e, i) => {
-                const { label: countdownLabel, daysAway } = getRelativeDate(e.date);
                 const typeClass = typeToClass(e.type);
-                const isOverdue = daysAway < 0 && e.status !== 'Done';
-                const isDueSoon = daysAway >= 0 && daysAway <= 3 && e.status !== 'Done';
 
                 return (
                   <div key={e.id} className={`item ${i % 2 === 0 ? 'left' : 'right'}`}>
                     <div className={`card ${typeClass}`}>
                       <div className="cardTop">
-                        <div className="cardTitle">{typeEmoji(e.type)} {e.course} — {e.title}</div>
+                        <div className="cardTitle">
+                          {e.course} — {e.title}
+                        </div>
                         <div className="cardMeta">{e.date}</div>
                       </div>
-                      <div className="badges">
-                        <span className="badge">{e.type}</span>
-                        <span className={`badge ${e.status === 'Done' ? 'statusDone' : e.status === 'In progress' ? 'statusProg' : ''}`}>
-                          {e.status}
-                        </span>
-                        {isOverdue && <span className="badge urgentOverdue">⚠ Overdue</span>}
-                        {isDueSoon && <span className="badge urgentSoon">🔥 Due Soon</span>}
-                        <span className="countdown">{countdownLabel}</span>
-                      </div>
-                      <div className="cardActions">
-                        <button className="smallBtn" onClick={() => setStatus(e.id, 'In progress')}>In progress</button>
+                      <div className="cardActions" style={{ marginTop: 'auto' }}>
                         <button className="smallBtn" onClick={() => toggleStatus(e.id, e.status)}>
                           {e.status === 'Done' ? 'Undo' : 'Done'}
                         </button>
-                        <button className="smallBtn danger" onClick={() => removeEvent(e.id)}>Delete</button>
                       </div>
                     </div>
                   </div>

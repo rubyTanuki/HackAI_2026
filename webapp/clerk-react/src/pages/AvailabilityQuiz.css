@@ -138,12 +138,12 @@
 
 /* Cards */
 .sp-card {
-  background: rgba(30, 31, 42, 0.7);
+  background: rgba(18, 19, 26, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 24px;
   padding: 2.5rem;
   backdrop-filter: blur(20px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   text-align: center;
 }
 

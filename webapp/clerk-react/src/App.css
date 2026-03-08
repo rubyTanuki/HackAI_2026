@@ -156,6 +156,39 @@ body {
   align-items: center;
 }
 
+@media (max-width: 640px) {
+  #root {
+    padding: 12px 12px 80px; /* Space for bottom padding or keep it tight */
+  }
+  
+  .nav {
+    padding: 8px 12px;
+    margin: 4px 0 16px;
+    border-radius: 999px; /* Pill shape for cuteness */
+  }
+
+  .navLeft {
+    gap: 12px;
+  }
+
+  .brand {
+    font-size: 16px;
+  }
+
+  .navItems {
+    display: none; /* Hide links on mobile for minimal look, suggest a menu or just rely on brand/profile */
+  }
+
+  .userProfile {
+    padding: 4px 4px 4px 8px;
+    gap: 6px;
+  }
+
+  .userName {
+    display: none; /* Minimal on mobile */
+  }
+}
+
 /* ── Course Entry Section ── */
 .courseSection {
   border-radius: 22px;
@@ -686,17 +719,28 @@ body {
 }
 
 @media (max-width: 768px) {
-  #root { padding: 1rem; }
-  .cardWide { flex-direction: column; padding: 16px; }
-  .dropzone { min-height: 180px; padding: 30px 16px; }
-  .filePanel { padding: 16px; }
-  .panelTop { align-items: flex-start; }
-  .fileItem { flex-direction: column; align-items: flex-start; }
-  .fileName, .fileStatus { white-space: normal; }
-  .dzFooter { width: 100%; }
-  .btn { width: 100%; }
-  .courseInputRow { flex-direction: column; }
-  .courseAddBtn { width: 100%; justify-content: center; }
+  #root { padding: 12px; }
+  .hero { margin-bottom: 20px; }
+  .heroTitle { font-size: 1.75rem; }
+  .heroSub { font-size: 0.9rem; }
+  
+  .cardWide { 
+    padding: 20px 16px; 
+    gap: 16px;
+  }
+  
+  .dropzone { 
+    min-height: 120px; 
+    padding: 20px; 
+    flex-direction: column; 
+    gap: 10px;
+  }
+  
+  .dzTop svg { width: 24px !important; height: 24px !important; }
+  .dzTitle { font-size: 0.95rem; }
+  
+  .courseInputRow { gap: 8px; }
+  .btn { padding: 12px; font-size: 0.9rem; }
 }
 
 @media (max-width: 520px) {

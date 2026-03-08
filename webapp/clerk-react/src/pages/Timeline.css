@@ -675,8 +675,8 @@ body {
   }
 
   .item {
-    grid-template-columns: 28px minmax(0, 1fr);
-    margin: 16px 0;
+    grid-template-columns: 24px minmax(0, 1fr);
+    margin: 4px 0;
   }
 
   .item.left .card,
@@ -699,6 +699,20 @@ body {
       "top"
       "badges"
       "actions";
+    min-height: auto;
+    padding: 8px 12px;
+    gap: 4px;
+    margin-left: 10px !important;
+  }
+
+  .cardTitle {
+    font-size: 0.8rem;
+    line-height: 1.2;
+  }
+
+  .cardMeta {
+    font-size: 0.65rem;
+    opacity: 0.6;
   }
 
   .cardTop {
@@ -707,11 +721,15 @@ body {
   }
 
   .cardActions {
-    justify-content: flex-start;
+    justify-content: flex-end;
+    margin-top: 4px;
   }
 
   .smallBtn {
-    width: 100%;
+    width: auto;
+    padding: 4px 10px;
+    font-size: 0.65rem;
+    border-radius: 6px;
   }
 
   /* on mobile all cards stack on right — accent always on left */
