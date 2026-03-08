@@ -149,6 +149,7 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
             {
                 "$setOnInsert": {
                     "leaderboard_rank": 0,
+                    "elo": {"global_avg": 500},
                     "study_plan": {
                         "generated_on": None,
                         "tasks": []
@@ -377,11 +378,53 @@ async def match_rank_endpoint(match_id: str, user_id: str = Depends(verify_token
         else:
             change = -10
             
-    # update actual user leaderboard rank
+    # Update per-class Elo safely handling 500-point defaults
+    course_key = f"{match.get('course_prefix', 'UNKNOWN')}_{match.get('course_code', '0000')}".replace(' ', '_')
+    
+    user_doc = await users_collection.find_one({"_id": user_id})
+    user_elo = user_doc.get("elo", {}) if user_doc else {}
+    
+    current_class_elo = user_elo.get(course_key, 500)
+    current_global_elo = user_elo.get("global_avg", 500)
+    
     await users_collection.update_one(
         {"_id": user_id},
-        {"$inc": {"leaderboard_rank": change}}
+        {"$set": {
+            f"elo.{course_key}": current_class_elo + change,
+            "elo.global_avg": current_global_elo + change
+        }}
     )
     
     return {"rank_change": change}
+
+@app.get("/leaderboard/local/{course_prefix}/{course_code}")
+async def get_class_leaderboard(course_prefix: str, course_code: str):
+    course_key = f"{course_prefix}_{course_code}".replace(' ', '_')
+    # Fetch top 50 users who have an active rank in this specific class
+    cursor = users_collection.find({f"elo.{course_key}": {"$exists": True}}).sort(f"elo.{course_key}", -1).limit(50)
+    users = await cursor.to_list(length=50)
+    
+    leaderboard = []
+    for u in users:
+        leaderboard.append({
+            "username": u.get("username", "Unknown"),
+            "elo": u.get("elo", {}).get(course_key, 500)
+        })
+        
+    return {"course": f"{course_prefix} {course_code}", "leaderboard": leaderboard}
+
+@app.get("/leaderboard/global")
+async def get_global_leaderboard():
+    # Fetch top 50 users globally
+    cursor = users_collection.find({"elo.global_avg": {"$exists": True}}).sort("elo.global_avg", -1).limit(50)
+    users = await cursor.to_list(length=50)
+    
+    leaderboard = []
+    for u in users:
+        leaderboard.append({
+            "username": u.get("username", "Unknown"),
+            "elo": u.get("elo", {}).get("global_avg", 500)
+        })
+        
+    return {"leaderboard": leaderboard}
     
