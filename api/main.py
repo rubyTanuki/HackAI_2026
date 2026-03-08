@@ -159,11 +159,6 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
                 })
                 
             for d in new_deadlines:
->>>>>>> Stashed changes
                 all_deadlines.append(Deadline(**d))
-            elif hasattr(d, 'model_dump'):
-                all_deadlines.append(Deadline(**d.model_dump()))
-            else:
-                all_deadlines.append(d)
 
     return TimelineResponse(deadlines=all_deadlines)
