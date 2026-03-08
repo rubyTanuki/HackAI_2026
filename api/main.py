@@ -9,6 +9,7 @@ load_dotenv()
 
 import hashlib
 import requests
+import random
 from bson import ObjectId
 from clerk import verify_token
 from mongo import users_collection, syllabi_collection, matches_collection
@@ -53,33 +54,19 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
         gemini_responses = await gemini.parse_syllabi(texts)
         
         for (syllabus, text_hash), response in zip(syllabi_to_process, gemini_responses):
-            new_deadlines = []
-            course_prefix = "Unknown"
-            course_code = "Course"
-            course_name = ""
-            section_number = ""
-            pf_first = ""
-            pf_last = ""
-            difficulty = ""
-            
-            # response could be a dict (on error) or a Pydantic Syllabus object
-            if isinstance(response, dict):
-                new_deadlines = response.get("deadlines", [])
-                course_prefix = response.get("course_prefix", "Unknown")
-                course_code = response.get("course_code", "Course")
-                course_name = response.get("course_name", "")
-                section_number = response.get("section_number", "")
-                pf_first = response.get("professor_first_name", "")
-                pf_last = response.get("professor_last_name", "")
-            elif hasattr(response, "deadlines"):
-                new_deadlines = [d.model_dump() for d in response.deadlines]
-                course_prefix = getattr(response, "course_prefix", "Unknown")
-                course_code = getattr(response, "course_code", "Course")
-                course_name = getattr(response, "course_name", "")
-                section_number = getattr(response, "section_number", "")
-                pf_first = getattr(response, "professor_first_name", "")
-                pf_last = getattr(response, "professor_last_name", "")
+            if hasattr(response, "model_dump"):
+                syllabus_data = response.model_dump()
+            else:
+                syllabus_data = response if isinstance(response, dict) else {}
                 
+            new_deadlines = syllabus_data.get("deadlines", [])
+            course_prefix = syllabus_data.get("course_prefix", "Unknown")
+            course_code = syllabus_data.get("course_code", "Course")
+            course_name = syllabus_data.get("course_name", "")
+            section_number = syllabus_data.get("section_number", "")
+            pf_first = syllabus_data.get("professor_first_name", "")
+            pf_last = syllabus_data.get("professor_last_name", "")
+            
             combined_course = f"{course_prefix}{course_code}".strip()
 
             # get difficulty and any missed info from nebula
@@ -93,6 +80,7 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
                 "x-api-key": os.getenv("NEBULA_API_KEY", "")
             }
             
+            difficulty = ""
             try:
                 nebula_response = requests.get(nebula_url, params=params, headers=headers, timeout=5)
                 if nebula_response.status_code == 200:
@@ -114,7 +102,6 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
                 print(f"Warning: Nebula request failed: {e}")
                 
             
-            
             # Inject top-level course info into each deadline for frontend convenience
             for d in new_deadlines:
                 d["course"] = combined_course
@@ -127,18 +114,14 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
                 if difficulty:
                     d["difficulty"] = difficulty
                 
-            if new_deadlines or not isinstance(response, dict) or "error" not in response:
-                # cache it even if empty to avoid calling gemini multiple times for bad text
-                await syllabi_collection.insert_one({
-                    "_id": text_hash, 
-                    "course_prefix": course_prefix,
-                    "course_code": course_code,
-                    "course_name": course_name,
-                    "section_number": section_number,
-                    "professor_first_name": pf_first,
-                    "professor_last_name": pf_last,
-                    "deadlines": new_deadlines
-                })
+            if new_deadlines or "error" not in syllabus_data:
+                # Add difficulty and ID for caching, and save ALL extracted fields (including topics!)
+                syllabus_data["_id"] = text_hash
+                if difficulty:
+                    syllabus_data["difficulty"] = difficulty
+                syllabus_data["deadlines"] = new_deadlines
+                
+                await syllabi_collection.insert_one(syllabus_data)
                 
             for d in new_deadlines:
                 all_deadlines.append(Deadline(**d))
@@ -293,23 +276,45 @@ async def match_quiz_endpoint(match_id: str, user_id: str = Depends(verify_token
         return match["quiz_data"]
         
     # PLACEHOLDER GEMINI CALL
-    # For now, just generate a dummy quiz and save it so both players get the SAME quiz
-    placeholder_quiz = {
-        "questions": [
-            {
-                "question": f"What is a core concept of {match.get('course_prefix')} {match.get('course_code')}?",
-                "options": ["A", "B", "C", "D"],
-                "answer": "A"
-            }
-        ]
-    }
+    course_prefix = match.get("course_prefix")
+    course_code = match.get("course_code")
+    
+    syllabus = await syllabi_collection.find_one({
+        "course_prefix": course_prefix,
+        "course_code": course_code
+    })
+    
+    topic_name = "General Knowledge"
+    course_name = f"{course_prefix} {course_code}"
+    
+    if syllabus:
+        course_name = syllabus.get("course_name", course_name)
+        topics = syllabus.get("topics", [])
+        
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        valid_topics = []
+        for t in topics:
+            est_date = t.get("estimated_date", "")
+            if est_date and est_date <= today:
+                valid_topics.append(t.get("name"))
+                
+        if valid_topics:
+            topic_name = random.choice(valid_topics)
+        elif topics:
+            topic_name = random.choice(topics).get("name")
+            
+    quiz_data = await gemini.generate_quiz(topic=topic_name, course=course_name, questions=5)
+    
+    if not quiz_data or "error" in quiz_data:
+        raise HTTPException(status_code=500, detail="Failed to generate match quiz")
     
     await matches_collection.update_one(
         {"_id": ObjectId(match_id)},
-        {"$set": {"quiz_data": placeholder_quiz}}
+        {"$set": {"quiz_data": quiz_data}}
     )
     
-    return placeholder_quiz
+    return quiz_data
 
 @app.post("/match/{match_id}/submit")
 async def match_submit_endpoint(match_id: str, request: MatchSubmitRequest, user_id: str = Depends(verify_token)):
