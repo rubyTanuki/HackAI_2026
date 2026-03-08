@@ -45,6 +45,13 @@ class Question(BaseModel):
 class Quiz(BaseModel):
     questions: List[Question] = Field(description="List of questions in the quiz")
 
+class MemoryPair(BaseModel):
+    concept: str = Field(description="The vocabulary term or concept")
+    definition: str = Field(description="The concise 5-word definition or explanation of the concept")
+
+class MemoryGame(BaseModel):
+    pairs: List[MemoryPair] = Field(description="List of exactly 8 concept-definition pairs")
+
 class GeminiClient:
     def __init__(self):
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -190,4 +197,30 @@ class GeminiClient:
             input_data=input_data,
             response_schema=Quiz,
             log_name="Ranked Quiz"
+        )
+
+    async def generate_memory_cards(self, topic:str, course:str, pairs:int=8):
+        model_name = "gemini-2.5-flash"
+        system_prompt = f"""You are a university teaching assistant crafting a competitive memory-matching game for a student.
+        The user will provide you with a specific academic topic or unit.
+        You must generate exactly {pairs} factual term-and-definition pairs about this precise topic.
+        
+        Rules:
+        - Make the definitions concise (under 8 words) but highly specific to a university level.
+        - Ensure terms are completely distinct from each other.
+        - Format the output strictly to match the requested JSON schema.
+        """
+
+        input_data={
+            "topic":topic,
+            "course":course,
+            "pair_amt":pairs
+        }
+
+        return await self._generate_async(
+            model_name=model_name,
+            system_prompt=system_prompt,
+            input_data=input_data,
+            response_schema=MemoryGame,
+            log_name="Memory Cards"
         )

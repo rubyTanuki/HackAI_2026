@@ -497,6 +497,22 @@ select.mt-input option {
   color: #f8fafc;
 }
 
+.mt-memory-card {
+  aspect-ratio: 3/2;
+  padding: 16px;
+  border-radius: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.mt-memory-card:hover:not(:disabled) {
+  filter: brightness(0.85);
+}
+
 @media (max-width: 900px) {
   .mt-player-row {
     grid-template-columns: 1fr;

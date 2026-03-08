@@ -16,7 +16,7 @@ import PyPDF2
 from bson import ObjectId
 from clerk import verify_token
 from mongo import users_collection, syllabi_collection, matches_collection
-from models import TimelineRequest, TimelineResponse, Deadline, MatchQueueRequest, MatchSubmitRequest
+from models import TimelineRequest, TimelineResponse, Deadline, MatchQueueRequest, MatchSubmitRequest, MemoryTurnRequest
 from gemini import GeminiClient
 
 app = FastAPI()
@@ -273,11 +273,16 @@ async def study_plan_endpoint(user_id: str = Depends(verify_token)):
 @app.post("/match/queue")
 async def match_queue_endpoint(request: MatchQueueRequest, user_id: str = Depends(verify_token)):
     # Look for someone waiting in the same class
-    match = await matches_collection.find_one({
+    query = {
         "status": "waiting",
         "course_prefix": request.course_prefix,
         "course_code": request.course_code
-    })
+    }
+    
+    if request.mode != "random":
+        query["mode"] = request.mode
+
+    match = await matches_collection.find_one(query)
     
     if match:
         if match["player1"] == user_id:
@@ -289,11 +294,15 @@ async def match_queue_endpoint(request: MatchQueueRequest, user_id: str = Depend
         )
         return {"match_id": str(match["_id"]), "status": "in_progress"}
         
+    import random
+    assigned_mode = random.choice(["quiz", "memory"]) if request.mode == "random" else request.mode
+
     # No one waiting, create a new match lobby
     new_match = await matches_collection.insert_one({
         "status": "waiting",
         "course_prefix": request.course_prefix,
         "course_code": request.course_code,
+        "mode": assigned_mode,
         "player1": user_id,
         "player2": None,
         "player1_score": None,
@@ -329,6 +338,7 @@ async def match_status_endpoint(match_id: str, user_id: str = Depends(verify_tok
         
     return {
         "status": match["status"],
+        "mode": match.get("mode", "quiz"),
         "player1": match["player1"],
         "player2": match.get("player2")
     }
@@ -371,17 +381,48 @@ async def match_quiz_endpoint(match_id: str, user_id: str = Depends(verify_token
         elif topics:
             topic_name = random.choice(topics).get("name")
             
-    quiz_data = await gemini.generate_quiz(topic=topic_name, course=course_name, questions=5)
-    
-    if not quiz_data or "error" in quiz_data:
-        raise HTTPException(status_code=500, detail="Failed to generate match quiz")
-    
-    await matches_collection.update_one(
-        {"_id": ObjectId(match_id)},
-        {"$set": {"quiz_data": quiz_data}}
-    )
-    
-    return quiz_data
+    if match.get("mode") == "memory":
+        memory_data = await gemini.generate_memory_cards(topic=topic_name, course=course_name, pairs=8)
+        if not memory_data or "error" in memory_data:
+            raise HTTPException(status_code=500, detail="Failed to generate match cards")
+        
+        cards = []
+        pairs_list = memory_data.pairs if hasattr(memory_data, "pairs") else memory_data.get("pairs", [])
+            
+        for i, pair in enumerate(pairs_list):
+            c = pair.concept if hasattr(pair, "concept") else pair.get("concept", "")
+            d = pair.definition if hasattr(pair, "definition") else pair.get("definition", "")
+                
+            cards.append({"id": i*2, "type": "concept", "text": c, "pair_id": i, "state": "hidden"})
+            cards.append({"id": i*2 + 1, "type": "definition", "text": d, "pair_id": i, "state": "hidden"})
+            
+        random.shuffle(cards)
+        
+        game_data = {
+            "board": cards,
+            "turn": match["player1"], # player1 goes first
+            "scores": {match["player1"]: 0, match.get("player2", str(match.get("_id"))): 0},
+            "last_action": None,
+            "action_id": 0
+        }
+        
+        await matches_collection.update_one(
+            {"_id": ObjectId(match_id)},
+            {"$set": {"quiz_data": game_data}}
+        )
+        return game_data
+    else:
+        quiz_data = await gemini.generate_quiz(topic=topic_name, course=course_name, questions=5)
+        
+        if not quiz_data or "error" in quiz_data:
+            raise HTTPException(status_code=500, detail="Failed to generate match quiz")
+        
+        await matches_collection.update_one(
+            {"_id": ObjectId(match_id)},
+            {"$set": {"quiz_data": quiz_data}}
+        )
+        
+        return quiz_data
 
 @app.post("/match/{match_id}/submit")
 async def match_submit_endpoint(match_id: str, request: MatchSubmitRequest, user_id: str = Depends(verify_token)):
@@ -411,6 +452,90 @@ async def match_submit_endpoint(match_id: str, request: MatchSubmitRequest, user
         )
         
     return {"message": "Score submitted"}
+
+@app.post("/match/{match_id}/turn")
+async def match_turn_endpoint(match_id: str, request: MemoryTurnRequest, user_id: str = Depends(verify_token)):
+    match = await matches_collection.find_one({"_id": ObjectId(match_id)})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+        
+    if match.get("mode") != "memory":
+        raise HTTPException(status_code=400, detail="Turns are only supported in memory mode")
+        
+    if match.get("status") != "in_progress":
+        raise HTTPException(status_code=400, detail="Match is not in progress")
+        
+    game_data = match.get("quiz_data")
+    if not game_data:
+        raise HTTPException(status_code=400, detail="Game board not generated")
+        
+    if game_data.get("turn") != user_id:
+        raise HTTPException(status_code=403, detail="Not your turn")
+        
+    card1_id = request.card1_id
+    card2_id = request.card2_id
+    
+    board = game_data.get("board", [])
+    card1 = next((c for c in board if c["id"] == card1_id), None)
+    card2 = next((c for c in board if c["id"] == card2_id), None)
+    
+    if not card1 or not card2:
+        raise HTTPException(status_code=400, detail="Invalid card ID")
+        
+    if card1["state"] != "hidden" or card2["state"] != "hidden":
+        raise HTTPException(status_code=400, detail="Card already matched")
+        
+    if card1_id == card2_id:
+         raise HTTPException(status_code=400, detail="Cannot flip the same card twice")
+        
+    is_match = (card1["pair_id"] == card2["pair_id"])
+    
+    if is_match:
+        card1["state"] = "matched"
+        card2["state"] = "matched"
+        game_data["scores"][user_id] = game_data["scores"].get(user_id, 0) + 1
+        
+    player1 = match["player1"]
+    player2 = match["player2"]
+    other_player = player2 if user_id == player1 else player1
+    
+    # Keep turn on match, pass turn on mismatch
+    if not is_match:
+        game_data["turn"] = other_player
+        
+    game_data["action_id"] = game_data.get("action_id", 0) + 1
+    game_data["last_action"] = {
+        "player": user_id,
+        "card1": card1_id,
+        "card2": card2_id,
+        "is_match": is_match,
+        "id": game_data["action_id"]
+    }
+    
+    all_matched = all(c["state"] == "matched" for c in board)
+    
+    if all_matched:
+        p1_score = game_data["scores"].get(player1, 0)
+        p2_score = game_data["scores"].get(player2, 0)
+        
+        await matches_collection.update_one(
+            {"_id": ObjectId(match_id)},
+            {
+                "$set": {
+                    "quiz_data": game_data,
+                    "status": "completed",
+                    "player1_score": p1_score,
+                    "player2_score": p2_score
+                }
+            }
+        )
+        return {"is_match": is_match, "completed": True, "action": game_data["last_action"]}
+    else:
+        await matches_collection.update_one(
+            {"_id": ObjectId(match_id)},
+            {"$set": {"quiz_data": game_data}}
+        )
+        return {"is_match": is_match, "completed": False, "action": game_data["last_action"]}
 
 @app.get("/match/{match_id}/results")
 async def match_results_endpoint(match_id: str, user_id: str = Depends(verify_token)):

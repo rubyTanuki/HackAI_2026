@@ -26,6 +26,12 @@ class TimelineResponse(BaseModel):
 class MatchQueueRequest(BaseModel):
     course_prefix: str
     course_code: str
+    mode: str = "quiz"
     
 class MatchSubmitRequest(BaseModel):
     score: int
+    total: int
+
+class MemoryTurnRequest(BaseModel):
+    card1_id: int
+    card2_id: int
