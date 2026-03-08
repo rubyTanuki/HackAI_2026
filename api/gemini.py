@@ -43,7 +43,7 @@ class GeminiClient:
         return await asyncio.gather(*[self.parse_syllabus(syllabus) for syllabus in syllabi])
 
     async def parse_syllabus(self, syllabus: str) -> dict:
-        model_name = "gemini-2.5-pro"
+        model_name = "gemini-2.5-flash-lite"
 
         system_prompt = """You are a helpful assistant that parses syllabi and extracts deadlines.
         Extract from the syllabus every single assignment, exam, quiz, project, etc. that is due.
@@ -108,9 +108,9 @@ class GeminiClient:
 
 
 
-    async def generate_studyplan(self, deadlines) -> dict:
-        model_name = "gemini-2.5-pro"
-        system_prompt = """You are a helpful assistant that generates a study plan for a student based on their deadlines.
+    async def generate_studyplan(self, deadlines: List[dict]) -> dict:
+        model_name = "gemini-2.5-flash-lite"
+        system_prompt = """You are a helpful assistant that generates study plans based on deadlines.
             You will be given a list of deadlines in the following format:    
             title:str
             type:str

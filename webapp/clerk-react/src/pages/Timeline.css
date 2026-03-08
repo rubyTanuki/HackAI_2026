@@ -8,9 +8,9 @@
   --text: rgba(255, 255, 255, 0.94);
   --muted: rgba(255, 255, 255, 0.62);
 
-  --a1: #ff5bcc;
-  --a2: #6ef3ff;
-  --a3: #7bffa0;
+  --a1: #ff758c;
+  --a2: #ff7eb3;
+  --a3: #ff9a9e;
 
   --danger: #ff6f8e;
   --warning: #ffc978;
@@ -324,26 +324,31 @@ body {
 
 /* ---------- Timeline card ---------- */
 
-..card {
+.card {
   position: relative;
   width: 100%;
-  max-width: none;
   min-height: 132px;
+
   padding: 13px 15px;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.072), rgba(255, 255, 255, 0.042));
+  border: 1px solid rgba(255,255,255,.12);
+
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,.075),
+    rgba(255,255,255,.045)
+  );
+
   box-shadow: var(--shadow-md);
   backdrop-filter: blur(12px);
-  overflow: hidden;
-  transition:
-    transform 140ms ease,
-    background 140ms ease,
-    border-color 140ms ease;
 
   display: flex;
   flex-direction: column;
   gap: 10px;
+
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
 }
 
 
@@ -358,11 +363,18 @@ body {
 .card::after {
   content: "";
   position: absolute;
-  top: 14px;
-  bottom: 14px;
+
+  top: 10px;
+  bottom: 10px;
   width: 6px;
+
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
+}
+.item.left .card::after {
+  right: 0;
+}
+.item.right .card::after {
+  left: 0;
 }
 
 .item.left .card {

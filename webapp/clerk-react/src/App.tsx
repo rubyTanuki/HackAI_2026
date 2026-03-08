@@ -180,17 +180,10 @@ function App() {
           }));
           console.log("Normalized Events before saving:", normalizedEvents);
 
-          let existingEvents = [];
+          // Overwrite the previous events with ONLY the newest ones
           try {
-             existingEvents = JSON.parse(localStorage.getItem('events') || '[]');
-             if (!Array.isArray(existingEvents)) throw new Error("Not array");
-          } catch(e) {
-             console.warn("localStorage was corrupted or not an array. Resetting...");
-          }
-          const updatedEvents = [...existingEvents, ...normalizedEvents];
-          try {
-            localStorage.setItem('events', JSON.stringify(updatedEvents));
-            console.log("Successfully saved updatedEvents to localStorage:", updatedEvents);
+            localStorage.setItem('events', JSON.stringify(normalizedEvents));
+            console.log("Successfully saved normalizedEvents to localStorage:", normalizedEvents);
           } catch(e) { console.warn("Failed to save to local storage", e); }
         } else {
              console.warn("Backend events was empty or not an array.");

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { FC } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Timeline.css';
 
 interface TimelineEvent {
@@ -130,8 +131,7 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
   const [upcomingOnly, setUpcomingOnly] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-
+  const navigate = useNavigate();
   const [mCourse, setMCourse] = useState('');
   const [mType, setMType] = useState('Homework');
   const [mTitle, setMTitle] = useState('');
@@ -289,9 +289,40 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
   return (
     <div className="dashboard">
       <header className="hero tight">
-        <div>
-          <h1 className="heroTitle">Your timeline</h1>
-          <p className="heroSub">Filter by course, type, status. Add tasks. Sort by due date.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div>
+            <h1 className="heroTitle">Your timeline</h1>
+            <p className="heroSub">Filter by course, type, status. Add tasks. Sort by due date.</p>
+          </div>
+          
+          <button 
+            onClick={() => navigate('/study-plan')}
+            style={{
+              background: 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%)',
+              color: '#222741',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '999px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(255, 154, 158, 0.4)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '0.95rem'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 154, 158, 0.6)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(255, 154, 158, 0.4)';
+            }}
+          >
+            <span>✨ See your custom study guide!</span>
+          </button>
         </div>
 
         <div className="heroActions">
