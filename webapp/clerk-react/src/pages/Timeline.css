@@ -114,7 +114,7 @@ body {
   margin-top: 12px;
   border-radius: var(--radius-xl);
   border: 1px solid var(--stroke);
-  background: linear-gradient(180deg, var(--panel), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, rgba(18, 19, 26, 0.98), rgba(14, 14, 18, 0.98));
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(12px);
 }
@@ -270,7 +270,7 @@ body {
 }
 
 .monthLabel {
-  list-style: none; /* remove default arrow */
+  list-style: none;
   display: block;
   text-align: center;
   margin: 16px 0 24px 0;
@@ -285,8 +285,9 @@ body {
 
 .monthLabelText {
   display: inline-block;
-  background: rgba(255, 91, 204, 0.12);
-  border: 1px solid rgba(255, 91, 204, 0.3);
+  /* ── opaque month pill ── */
+  background: #1a0e1f;
+  border: 1px solid rgba(255, 91, 204, 0.35);
   color: #ff9ce4;
   padding: 6px 14px;
   border-radius: 999px;
@@ -294,14 +295,13 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .monthLabel:hover .monthLabelText {
   transform: translateY(-2px);
-  background: rgba(255, 91, 204, 0.18);
+  background: #210f28;
 }
 
 .monthContent {
@@ -365,7 +365,7 @@ body {
   z-index: 4;
 }
 
-/* ---------- Timeline card ---------- */
+/* ---------- Timeline card — fully opaque ── */
 
 .card {
   position: relative;
@@ -374,16 +374,14 @@ body {
 
   padding: 13px 15px;
   border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 
-  background: linear-gradient(
-    180deg,
-    rgba(255,255,255,.075),
-    rgba(255,255,255,.045)
-  );
+  /* opaque dark background — no bleed-through */
+  background: linear-gradient(180deg, #1c1d28, #16171f);
 
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(12px);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
   display: flex;
   flex-direction: column;
@@ -391,52 +389,55 @@ body {
 
   transition:
     transform 140ms ease,
-    background 140ms ease;
+    background 140ms ease,
+    border-color 140ms ease;
 }
-
 
 .card:hover {
   transform: translateY(-2px);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.055));
-  border-color: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, #21222f, #1b1c25);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* inside accent edge touches timeline */
+/* ── color accent — now on the OUTSIDE edge (away from centre line) ── */
 .card::after {
   content: "";
   position: absolute;
-
   top: 10px;
   bottom: 10px;
-  width: 6px;
-
+  width: 5px;
   border-radius: 999px;
 }
+
+/* left cards: accent on LEFT edge (outer) */
 .item.left .card::after {
-  right: 0;
-}
-.item.right .card::after {
   left: 0;
+  right: auto;
+}
+
+/* right cards: accent on RIGHT edge (outer) */
+.item.right .card::after {
+  right: 0;
+  left: auto;
 }
 
 .item.left .card {
   grid-column: 1 / 2;
   justify-self: stretch;
-  margin-left: 18px;   /* outer spacing only */
-  margin-right: 0;     /* touch middle line */
+  margin-left: 18px;
+  margin-right: 0;
 }
 
 .item.right .card {
   grid-column: 3 / 4;
   justify-self: stretch;
-  margin-left: 0;      /* touch middle line */
-  margin-right: 18px;  /* outer spacing only */
+  margin-left: 0;
+  margin-right: 18px;
 }
 
-.typeHW::after { background: #58c4ff; }
-.typeQuiz::after { background: #a084ff; }
-.typeExam::after { background: #ff4f6d; }
+.typeHW::after    { background: #58c4ff; }
+.typeQuiz::after  { background: #a084ff; }
+.typeExam::after  { background: #ff4f6d; }
 .typeProject::after { background: #41f19a; }
 .typeReading::after { background: #ffdd66; }
 
@@ -468,7 +469,7 @@ body {
   padding: 7px 10px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.66);
   font-size: 0.82rem;
   white-space: nowrap;
@@ -713,6 +714,7 @@ body {
     width: 100%;
   }
 
+  /* on mobile all cards stack on right — accent always on left */
   .item.left .card::after,
   .item.right .card::after {
     left: 0;

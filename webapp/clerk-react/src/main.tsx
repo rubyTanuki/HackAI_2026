@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
+import StudyPlanPage from './pages/StudyPlanPage.tsx'
+import AvailabilityQuiz from './pages/AvailabilityQuiz.tsx'
 import { ClerkProvider } from '@clerk/react'
 
 console.log("Starting React application...");

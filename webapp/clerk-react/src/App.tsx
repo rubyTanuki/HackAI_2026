@@ -33,6 +33,8 @@ function App() {
   const [view, setView] = useState<'upload' | 'timeline' | 'match' | 'studyplan' | 'quiz'>('upload');
   const [showStudyDropdown, setShowStudyDropdown] = useState(false);
   const [hasCompletedQuiz, setHasCompletedQuiz] = useState(false);
+  const [manualCourses, setManualCourses] = useState<string[]>([]);
+  const [courseInput, setCourseInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -67,7 +69,6 @@ function App() {
               f.file === item.file ? { ...f, text, loading: false } : f
             ));
 
-            // Console logging similar to the original JS
             console.log(`--- Extracted Content of ${item.file.name} ---`);
             console.log(text.substring(0, 500) + (text.length > 500 ? '...\n(truncated)' : ''));
           }
@@ -136,7 +137,7 @@ function App() {
       const newItems: FileItem[] = uniqueNew.map(file => ({
         file, text: null, loading: true, error: null
       }));
-      setHasUploaded(false); // Reset timeline button
+      setHasUploaded(false);
       return [...prev, ...newItems];
     });
   }
@@ -152,18 +153,35 @@ function App() {
     setFilesToUpload(prev => prev.filter((_, idx) => idx !== indexToRemove));
   }
 
+  const addManualCourse = () => {
+    const trimmed = courseInput.trim().toUpperCase();
+    const regex = /^[A-Z]{2,4}\s?\d{4}$/;
+    if (!regex.test(trimmed)) {
+      alert('Invalid course code! Use format like "MATH 3345" or "CS1337".');
+      return;
+    }
+    if (manualCourses.includes(trimmed)) return;
+    setManualCourses(prev => [...prev, trimmed]);
+    setCourseInput('');
+  }
+
+  const removeManualCourse = (code: string) => {
+    setManualCourses(prev => prev.filter(c => c !== code));
+  }
+
   const handleUpload = async () => {
     const readyItems = filesToUpload.filter(f => !f.loading && !f.error && f.text);
-    if (readyItems.length === 0) {
-      alert('No files are fully extracted or ready to upload yet.');
+    if (readyItems.length === 0 && manualCourses.length === 0) {
+      alert('Please upload a syllabus or enter a course code.');
       return;
     }
 
-    const payload = readyItems.map(item => item.text);
+    const payloadSyllabi = readyItems.map(item => item.text);
+    const payloadCourses = [...manualCourses];
     setIsSending(true);
 
     console.log("--- FINAL PAYLOAD BEING SENT ---");
-    console.log(JSON.stringify({ syllabi: payload, courses: [] }, null, 2));
+    console.log(JSON.stringify({ syllabi: payloadSyllabi, courses: payloadCourses }, null, 2));
 
     try {
       const token = await getToken();
@@ -181,7 +199,7 @@ function App() {
       const response = await fetch(`http://${window.location.hostname}:8000/timeline`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({ syllabi: payload, courses: [] })
+        body: JSON.stringify({ syllabi: payloadSyllabi, courses: payloadCourses })
       });
 
       if (response.ok) {
@@ -203,7 +221,6 @@ function App() {
           }));
           console.log("Normalized Events before saving:", normalizedEvents);
 
-          // Overwrite the previous events with ONLY the newest ones
           try {
             localStorage.setItem('events', JSON.stringify(normalizedEvents));
             console.log("Successfully saved normalizedEvents to localStorage:", normalizedEvents);
@@ -211,7 +228,6 @@ function App() {
         } else {
              console.warn("Backend events was empty or not an array.");
         }
-        // Automatically transition to timeline
         setFilesToUpload(prev => prev.filter(f => !readyItems.includes(f)));
         setHasUploaded(true);
         setView('timeline');
@@ -308,17 +324,17 @@ function App() {
         ) : (
           <>
             <header className="hero">
-              <h1 className="heroTitle">Upload your syllabuses</h1>
-              <p className="heroSub">Drop files to extract text instantly. Everything runs securely in your browser before sending.</p>
+              <h1 className="heroTitle">Get Locked In</h1>
+              <p className="heroSub">Enter your course codes or upload syllabuses to generate your custom study plan.</p>
             </header>
 
             <main className="center">
               <section className="cardWide">
                 {isSending ? (
                   <div style={{ padding: '80px 20px', textAlign: 'center' }}>
-                    <h2 style={{ fontSize: '2rem', color: '#58c4ff', marginBottom: '15px' }}>Analyzing Syllabuses...</h2>
+                    <h2 style={{ fontSize: '2rem', color: '#58c4ff', marginBottom: '15px' }}>Analyzing Courses...</h2>
                     <p style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,.6)', marginBottom: '30px' }}>
-                      Extracting deadlines and generating your custom timeline. This might take a moment.
+                      Gathering details and generating your custom timeline. This might take a moment.
                     </p>
                     <svg style={{ width: '50px', height: '50px', animation: 'spin 1s linear infinite', color: '#58c4ff', margin: '0 auto' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="30" strokeLinecap="round"></circle>
@@ -358,60 +374,114 @@ function App() {
                       </div>
 
                       <div className="dzFooter">
-                        <button className="btn ghost" onClick={(e) => { e.stopPropagation(); setFilesToUpload([]) }}>Clear List</button>
+                        <button className="btn ghost" onClick={(e) => { e.stopPropagation(); setFilesToUpload([]) }}>Clear Files</button>
                       </div>
                     </div>
 
-                    {/* File Upload List */}
-                    <div className="filePanel">
-                      <div className="panelTop">
-                        <div className="panelTitle">Extracted Files</div>
-                        <div className="panelMeta">{filesToUpload.length}</div>
+                    {/* Divider */}
+                    <div className="uploadDivider">
+                      <span>and / or</span>
+                    </div>
+
+                    {/* Manual Course Entry */}
+                    <div className="courseSection">
+                      <p className="courseSectionLabel">📚 Manual Course Entry</p>
+
+                      <div className="courseInputRow">
+                        <input
+                          type="text"
+                          className="courseInput"
+                          placeholder="e.g. CS 1337 or MATH3345"
+                          value={courseInput}
+                          onChange={(e) => setCourseInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && addManualCourse()}
+                        />
+                        <button className="courseAddBtn" onClick={addManualCourse}>
+                          + Add
+                        </button>
                       </div>
 
-                      <div className="fileList" id="fileList">
-                        {filesToUpload.length === 0 && (
-                          <div style={{ color: 'rgba(255,255,255,.40)', textAlign: 'center', padding: '40px 0' }}>
-                            No files added yet.<br />Drag some over!
+                      {manualCourses.length > 0 && (
+                        <div className="courseTags">
+                          {manualCourses.map(code => (
+                            <span key={code} className="courseTag">
+                              {code}
+                              <button className="courseTagRemove" onClick={() => removeManualCourse(code)}>×</button>
+                            </span>
+                          ))}
+                          <button className="courseClearAll" onClick={() => setManualCourses([])}>
+                            clear all
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Unified Queue Panel */}
+                    {(filesToUpload.length > 0 || manualCourses.length > 0) && (
+                      <div className="queuePanel">
+                        <div className="queuePanelTop">
+                          <div className="queuePanelLeft">
+                            <span className="queuePanelIcon">✦</span>
+                            <span className="queuePanelTitle">Course Queue</span>
+                          </div>
+                          <div className="queueCount">{filesToUpload.length + manualCourses.length}</div>
+                        </div>
+
+                        <div className="queueList">
+                          {/* Manual course codes */}
+                          {manualCourses.map(code => (
+                            <div className="queueItem queueItemCode" key={code}>
+                              <div className="queueItemLeft">
+                                <span className="queueItemIconWrap queueItemIconCode">📘</span>
+                                <div>
+                                  <div className="queueItemName">{code}</div>
+                                  <span className="queueItemStatus queueItemStatusCode">Course code</span>
+                                </div>
+                              </div>
+                              <button className="queueRemoveBtn" onClick={() => removeManualCourse(code)} title="Remove">×</button>
+                            </div>
+                          ))}
+
+                          {/* Uploaded files */}
+                          {filesToUpload.map((item, idx) => (
+                            <div className={`queueItem${item.error ? ' queueItemError' : ''}`} key={idx}>
+                              <div className="queueItemLeft">
+                                <span className={`queueItemIconWrap${item.loading ? ' queueItemIconLoading' : item.error ? ' queueItemIconError' : ' queueItemIconDone'}`}>
+                                  {item.loading ? '⏳' : item.error ? '❌' : '📄'}
+                                </span>
+                                <div>
+                                  <div className="queueItemName" title={item.file.name}>{item.file.name}</div>
+                                  {item.loading && <span className="queueItemStatus queueItemStatusLoading">Reading file...</span>}
+                                  {item.error && <span className="queueItemStatus queueItemStatusError">{item.error}</span>}
+                                  {!item.loading && !item.error && item.text && (
+                                    <span className="queueItemStatus queueItemStatusDone">Ready · {formatBytes(item.text.length)} chars</span>
+                                  )}
+                                </div>
+                              </div>
+                              <button className="queueRemoveBtn" onClick={(e) => { e.stopPropagation(); removeFile(idx); }} title="Remove">×</button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button className="btn primary bigBtn" onClick={handleUpload} disabled={isSending} style={{ width: '100%', marginTop: '1.25rem' }}>
+                          {isSending ? 'Syncing...' : 'Build my study guide ✦'}
+                        </button>
+
+                        {hasUploaded && (
+                          <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: '12px' }}>
+                            
                           </div>
                         )}
-
-                        {filesToUpload.map((item, idx) => (
-                          <div className="fileItem" key={idx}>
-                            <div>
-                              <div className="fileName" title={item.file.name}>{item.file.name}</div>
-                              {item.loading && <span className="fileStatus" style={{ color: '#ed8936' }}>⏳ Extracting text...</span>}
-                              {item.error && <span className="fileStatus" style={{ color: '#e53e3e' }}>❌ {item.error}</span>}
-                              {!item.loading && !item.error && item.text && <span className="fileStatus" style={{ color: '#38a169' }}>✅ Extracted ({formatBytes(item.text.length)} chars)</span>}
-                            </div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.40)' }}
-                            >
-                              <svg style={{ width: 20, height: 20 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                              </svg>
-                            </button>
-                          </div>
-                        ))}
                       </div>
+                    )}
 
-                      {filesToUpload.length > 0 && (
-                        <div style={{ marginTop: 15, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <button className="btn primary" onClick={handleUpload} disabled={isSending} style={{ width: '100%' }}>
-                            Upload Syllabus →
-                          </button>
-                        </div>
-                      )}
-
-                      {hasUploaded && (
-                        <div style={{ marginTop: 15, borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: '15px' }}>
-                          <button className="btn primary" onClick={() => setView('timeline')} style={{ width: '100%', background: '#38a169' }}>
-                            View Timeline →
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    {/* Empty state when nothing added yet */}
+                    {filesToUpload.length === 0 && manualCourses.length === 0 && (
+                      <div className="queueEmpty">
+                        <span style={{ fontSize: '1.5rem' }}>🗂️</span>
+                        <p>Drop files above or add a course code to get started</p>
+                      </div>
+                    )}
                   </>
                 )}
               </section>
@@ -424,14 +494,14 @@ function App() {
       <Show when="signed-out">
         <main className="center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
           <h1 style={{ fontSize: '2.5rem', marginBottom: '10px', color: '#58c4ff', fontFamily: "'Bungee', cursive", textTransform: 'uppercase' }}>Welcome to Locked In</h1>
-          <p style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,.50)', marginBottom: '30px' }}>Please sign in using Clerk to generate your course timeline via text extraction.</p>
+          <p style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,.50)', marginBottom: '30px' }}>Please sign in using Clerk</p>
           <SignInButton mode="modal">
             <button className="btn primary" style={{ padding: '15px 30px', fontSize: '1.2rem' }}>Sign In</button>
           </SignInButton>
         </main>
       </Show>
 
-      <footer className="footerMinimal">Extracting text locally to boost privacy and speed. Replace API endpoint later.</footer>
+
     </div>
   )
 }
