@@ -145,7 +145,7 @@ function App() {
     setIsSending(true);
 
     console.log("--- FINAL PAYLOAD BEING SENT ---");
-    console.log(JSON.stringify(payload, null, 2));
+    console.log(JSON.stringify({ syllabi: payload, courses: [] }, null, 2));
 
     try {
       const token = await getToken();
@@ -163,7 +163,7 @@ function App() {
       const response = await fetch(`http://${window.location.hostname}:8000/timeline`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({ syllabi: payload })
+        body: JSON.stringify({ syllabi: payload, courses: [] })
       });
 
       if (response.ok) {
