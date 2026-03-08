@@ -540,7 +540,13 @@ export default function MatchTest() {
                     </span>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
+                  <div style={{ 
+                    display: "grid", 
+                    gridTemplateColumns: "repeat(4, 1fr)", 
+                    gap: "16px",
+                    maxWidth: "800px",
+                    margin: "0 auto"
+                  }}>
                     {quizData.board.map((card: any) => {
                       const isLocalSelected = selectedCards.includes(card.id);
                       const isMatched = card.state === "matched";
