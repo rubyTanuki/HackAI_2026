@@ -1,4 +1,4 @@
-# HackAI 2026: AI-Powered Competitive Study Platform
+[Locked In Logo] (Locked_In.png)
 
 Welcome to our project for HackAI 2026! 
 
