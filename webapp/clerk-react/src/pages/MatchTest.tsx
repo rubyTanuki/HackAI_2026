@@ -18,16 +18,12 @@ export default function MatchTest() {
 
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourseStr, setSelectedCourseStr] = useState<string>("");
-  const [coursesLoading, setCoursesLoading] = useState<boolean>(false);
-  const [coursesError, setCoursesError] = useState<string | null>(null);
 
   // ── previously missing state ──
   const [mode, setMode] = useState<"random" | "quiz" | "memory">("random");
-
   const [matchId, setMatchId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("Not Queued");
   const [quizData, setQuizData] = useState<QuizData | null>(null);
-  const [score, setScore] = useState<number>(0);
   const [results, setResults] = useState<any>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
@@ -44,8 +40,6 @@ export default function MatchTest() {
   };
 
   const fetchCourses = async () => {
-    setCoursesLoading(true);
-    setCoursesError(null);
     const host = window.location.hostname;
     const headers = await getHeaders();
 
@@ -68,17 +62,12 @@ export default function MatchTest() {
       if (data.courses && data.courses.length > 0) {
         setCourses(data.courses);
         const first = data.courses[0];
-        setSelectedCourseStr(`${first.course_prefix}-${first.course_code}`);
-        setCoursesError(null);
+        setSelectedCourseStr(`${first.course_prefix}${first.course_code}`);
       } else {
         setCourses([]);
-        setCoursesError("No courses found — upload a syllabus in the Timeline first!");
       }
     } catch (e: any) {
-      setCoursesError(`Can't reach backend: ${e.message}`);
       console.error("Failed to fetch courses", e);
-    } finally {
-      setCoursesLoading(false);
     }
   };
 
@@ -88,21 +77,35 @@ export default function MatchTest() {
 
   const handleQueue = async () => {
     if (!selectedCourseStr) {
-      alert("Please select a course first (ensure you've uploaded a syllabus)");
+      alert("Please enter a course code (e.g. CS1137)");
       return;
     }
-    const [prefix, code] = selectedCourseStr.split("-");
+    
+    // Parse CS1137 or CS-1137 or CS 1137
+    const match = selectedCourseStr.toUpperCase().match(/([A-Z]+)[-\s]*(\d+)/);
+    if (!match) {
+      alert("Invalid course format. Please use something like CS1137");
+      return;
+    }
+    
+    const prefix = match[1];
+    const code = match[2];
+
     try {
       setStatus("Joining Queue...");
       setResults(null);
       setQuizData(null);
       setSelectedAnswers({});
-      setScore(0);
 
-      const res = await fetch(`http://localhost:8001/match/queue`, {
+      const host = window.location.hostname;
+      const res = await fetch(`http://${host}:8000/match/queue`, {
         method: "POST",
         headers: await getHeaders(),
-        body: JSON.stringify({ course_prefix: prefix, course_code: code, mode }),
+        body: JSON.stringify({
+          course_prefix: prefix,
+          course_code: code,
+          mode: mode,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Failed to queue");
@@ -119,7 +122,8 @@ export default function MatchTest() {
   const handleAbort = async () => {
     if (!matchId) return;
     try {
-      await fetch(`http://localhost:8001/match/${matchId}`, {
+      const host = window.location.hostname;
+      await fetch(`http://${host}:8000/match/${matchId}`, {
         method: "DELETE",
         headers: await getHeaders(),
       });
@@ -129,7 +133,6 @@ export default function MatchTest() {
       setQuizData(null);
       setResults(null);
       setSelectedAnswers({});
-      setScore(0);
     } catch {
       alert("Failed to abort");
     }
@@ -138,8 +141,9 @@ export default function MatchTest() {
   const startPollingStatus = (id: string) => {
     if (pollingInterval.current) clearInterval(pollingInterval.current);
     pollingInterval.current = setInterval(async () => {
+      const host = window.location.hostname;
       try {
-        const res = await fetch(`http://localhost:8001/match/${id}/status`, {
+        const res = await fetch(`http://${host}:8000/match/${id}/status`, {
           headers: await getHeaders(),
         });
         const data = await res.json();
@@ -163,8 +167,9 @@ export default function MatchTest() {
   const startPollingMemoryGame = (id: string) => {
     if (pollingInterval.current) clearInterval(pollingInterval.current);
     pollingInterval.current = setInterval(async () => {
+      const host = window.location.hostname;
       try {
-        const sRes = await fetch(`http://localhost:8000/match/${id}/status`, {
+        const sRes = await fetch(`http://${host}:8000/match/${id}/status`, {
           headers: await getHeaders(),
         });
         const sData = await sRes.json();
@@ -177,7 +182,7 @@ export default function MatchTest() {
           return;
         }
 
-        const qRes = await fetch(`http://localhost:8000/match/${id}/quiz`, {
+        const qRes = await fetch(`http://${host}:8000/match/${id}/quiz`, {
           headers: await getHeaders(),
         });
         if (qRes.ok) {
@@ -191,8 +196,9 @@ export default function MatchTest() {
   };
 
   const fetchQuiz = async (id: string) => {
+    const host = window.location.hostname;
     try {
-      const res = await fetch(`http://localhost:8001/match/${id}/quiz`, {
+      const res = await fetch(`http://${host}:8000/match/${id}/quiz`, {
         headers: await getHeaders(),
       });
       const data = await res.json();
@@ -221,8 +227,9 @@ export default function MatchTest() {
     }
 
     try {
+      const host = window.location.hostname;
       setStatus("Score Submitted, waiting for opponent...");
-      await fetch(`http://localhost:8001/match/${matchId}/submit`, {
+      await fetch(`http://${host}:8000/match/${matchId}/submit`, {
         method: "POST",
         headers: await getHeaders(),
         body: JSON.stringify({ score: computedScore, total: totalQuestions }),
@@ -236,8 +243,9 @@ export default function MatchTest() {
   const startPollingResults = (id: string) => {
     if (pollingInterval.current) clearInterval(pollingInterval.current);
     pollingInterval.current = setInterval(async () => {
+      const host = window.location.hostname;
       try {
-        const res = await fetch(`http://localhost:8001/match/${id}/results`, {
+        const res = await fetch(`http://${host}:8000/match/${id}/results`, {
           headers: await getHeaders(),
         });
         const data = await res.json();
@@ -254,8 +262,9 @@ export default function MatchTest() {
   };
 
   const fetchRankChange = async (id: string) => {
+    const host = window.location.hostname;
     try {
-      const res = await fetch(`http://localhost:8001/match/${id}/rank`, {
+      const res = await fetch(`http://${host}:8000/match/${id}/rank`, {
         headers: await getHeaders(),
       });
       const rankData = await res.json();
@@ -297,7 +306,8 @@ export default function MatchTest() {
 
     if (newSelection.length === 2) {
       try {
-        await fetch(`http://localhost:8000/match/${matchId}/turn`, {
+        const host = window.location.hostname;
+        await fetch(`http://${host}:8000/match/${matchId}/turn`, {
           method: "POST",
           headers: await getHeaders(),
           body: JSON.stringify({ card1_id: newSelection[0], card2_id: newSelection[1] }),
@@ -363,35 +373,46 @@ export default function MatchTest() {
               </div>
             </div>
 
-            {/* Course selector */}
-            <div className="mt-input-row">
-              {coursesLoading ? (
-                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem", padding: "0.5rem", fontFamily: "inherit" }}>
-                  ⏳ Loading courses...
-                </p>
-              ) : coursesError || courses.length === 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <p style={{ color: "#fca5a5", fontSize: "0.75rem", padding: "0.5rem 0", fontFamily: "inherit", margin: 0 }}>
-                    {coursesError || "No courses found yet."}
-                  </p>
-                  <button className="mt-btn" onClick={fetchCourses} style={{ alignSelf: "flex-start" }}>
-                    ↺ Retry
-                  </button>
-                </div>
-              ) : (
-                <select
-                  className="mt-input"
-                  style={{ appearance: "auto" }}
-                  value={selectedCourseStr}
-                  onChange={(e) => setSelectedCourseStr(e.target.value)}
-                  disabled={!isIdle}
-                >
-                  {courses.map((c: any, idx) => (
-                    <option key={idx} value={`${c.course_prefix}-${c.course_code}`}>
-                      {c.course_prefix} {c.course_code}{c.course_name ? ` - ${c.course_name}` : ""}
-                    </option>
+            {/* Course entry input */}
+            <div className="mt-input-row" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", fontWeight: 600, textTransform: "uppercase" }}>
+                Course Code
+              </label>
+              <input
+                type="text"
+                className="mt-input"
+                placeholder="e.g. CS1137"
+                value={selectedCourseStr}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().replace(/\s/g, "");
+                  setSelectedCourseStr(val);
+                }}
+                disabled={!isIdle}
+                style={{ 
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em"
+                }}
+              />
+              {courses.length > 0 && isIdle && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "4px" }}>
+                  {courses.slice(0, 3).map((c, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedCourseStr(`${c.course_prefix}${c.course_code}`)}
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: "4px",
+                        padding: "4px 8px",
+                        fontSize: "0.7rem",
+                        color: "rgba(255,255,255,0.6)",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {c.course_prefix}{c.course_code}
+                    </button>
                   ))}
-                </select>
+                </div>
               )}
             </div>
 
@@ -436,7 +457,7 @@ export default function MatchTest() {
             <div className="mt-player-meta">
               <div className="mt-player-name">You</div>
               <div className="mt-player-rank">
-                {selectedCourseStr ? selectedCourseStr.replace("-", " ") : "—"}
+                {selectedCourseStr ? selectedCourseStr.toUpperCase().replace(/([A-Z]+)\s*(\d+)/, "$1 $2") : "—"}
               </div>
             </div>
           </div>
