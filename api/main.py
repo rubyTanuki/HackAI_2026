@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -162,16 +163,52 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
     return TimelineResponse(deadlines=all_deadlines)
 
 
+@app.post("/study_plan")
 async def study_plan_endpoint(user_id: str = Depends(verify_token)):
     user_doc = await users_collection.find_one({"_id": user_id})
     if not user_doc:
         raise HTTPException(status_code=404, detail="User not found")
     
     enrolled_syllabi = user_doc.get("enrolled_syllabi", [])
+    if not enrolled_syllabi:
+        return {"tasks": []}
     
     # call gemini with all enrolled syllabi
+    all_deadlines = []
+    for sid in enrolled_syllabi:
+        doc = await syllabi_collection.find_one({"_id": sid})
+        if doc and "deadlines" in doc:
+            all_deadlines.extend(doc["deadlines"])
+            
+    if not all_deadlines:
+        return {"tasks": []}
+        
+    study_plan_data = await gemini.generate_studyplan(all_deadlines)
+    
+    if isinstance(study_plan_data, dict) and study_plan_data.get("status") == "error":
+        raise HTTPException(status_code=500, detail=study_plan_data.get("error", "Failed to generate study plan from Gemini"))
 
+    tasks = []
+    if hasattr(study_plan_data, "tasks"):
+        for t in study_plan_data.tasks:
+            t_dict = t.model_dump()
+            t_dict["completed"] = False
+            tasks.append(t_dict)
+    elif isinstance(study_plan_data, dict):
+        for t in study_plan_data.get("tasks", []):
+            t["completed"] = False
+            tasks.append(t)
+            
     # save study plan to db
+    study_plan_obj = {
+        "generated_on": datetime.utcnow().isoformat() + "Z",
+        "tasks": tasks
+    }
+    await users_collection.update_one(
+        {"_id": user_id},
+        {"$set": {"study_plan": study_plan_obj}}
+    )
 
     # return study plan
+    return study_plan_obj
     
