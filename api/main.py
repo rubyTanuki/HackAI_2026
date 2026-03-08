@@ -27,28 +27,24 @@ gemini = GeminiClient()
 
 @app.post("/timeline")
 async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(verify_token)):
-    return {
-    "deadlines": [
-        {
-            "id": "test-id-1",
-            "course": "CS/CE 2305.004",
-            "type": "Exam",
-            "title": "Discrete Math - Midterm",
-            "date": "2026-03-05",
-            "status": "Not started",
-            "weight": 30.0,
-            "points": 100
-        }
-    ]
-}
-    
     gemini_responses = await gemini.parse_syllabi(request.syllabi)
     
     all_deadlines = []
     for response in gemini_responses:
-        if "deadlines" in response:
-            for d in response["deadlines"]:
-                # Ensure we construct Pydantic 'Deadline' objects from the dictionary
+        # Handle both dict and Pydantic model returns
+        if hasattr(response, 'deadlines'):
+            deadlines = response.deadlines
+        elif isinstance(response, dict) and "deadlines" in response:
+            deadlines = response["deadlines"]
+        else:
+            continue
+
+        for d in deadlines:
+            if isinstance(d, dict):
                 all_deadlines.append(Deadline(**d))
+            elif hasattr(d, 'model_dump'):
+                all_deadlines.append(Deadline(**d.model_dump()))
+            else:
+                all_deadlines.append(d)
 
     return TimelineResponse(deadlines=all_deadlines)

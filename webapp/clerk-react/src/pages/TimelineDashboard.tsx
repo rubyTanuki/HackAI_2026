@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, FC } from 'react';
 import './Timeline.css';
 
 interface TimelineEvent {
@@ -13,7 +13,113 @@ interface TimelineEvent {
   weight?: number;
 }
 
-const TimelineDashboard: React.FC = () => {
+/* ---------------- helpers ---------------- */
+
+function typeToClass(type: string): string {
+  switch (type) {
+    case 'Homework': return 'typeHW';
+    case 'Quiz': return 'typeQuiz';
+    case 'Exam': return 'typeExam';
+    case 'Project': return 'typeProject';
+    case 'Reading': return 'typeReading';
+    default: return 'typeHW';
+  }
+}
+
+function typeEmoji(type: string): string {
+  switch (type) {
+    case 'Homework': return '📝';
+    case 'Quiz': return '❓';
+    case 'Exam': return '🧪';
+    case 'Project': return '🚀';
+    case 'Reading': return '📖';
+    default: return '📌';
+  }
+}
+
+function getRelativeDate(dateStr: string): { label: string; daysAway: number } {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const target = new Date(dateStr);
+  if (isNaN(target.getTime())) {
+    return { label: 'Invalid date', daysAway: 9999 };
+  }
+
+  target.setHours(0, 0, 0, 0);
+  const diff = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diff === 0) return { label: 'Today', daysAway: 0 };
+  if (diff === 1) return { label: 'Tomorrow', daysAway: 1 };
+  if (diff === -1) return { label: 'Yesterday', daysAway: -1 };
+  if (diff > 1) return { label: `in ${diff} days`, daysAway: diff };
+  return { label: `${Math.abs(diff)} days ago`, daysAway: diff };
+}
+
+function normalizeType(type: string): string {
+  const t = (type || '').toLowerCase();
+
+  if (t.includes('homework') || t.includes('assignment') || t.includes('hw')) return 'Homework';
+  if (t.includes('quiz')) return 'Quiz';
+  if (t.includes('exam') || t.includes('test') || t.includes('midterm') || t.includes('final')) return 'Exam';
+  if (t.includes('project')) return 'Project';
+  if (t.includes('reading') || t.includes('read')) return 'Reading';
+
+  return 'Homework';
+}
+
+function normalizeDate(dateValue: any): string {
+  if (!dateValue) return new Date().toISOString().slice(0, 10);
+
+  if (typeof dateValue === 'string') {
+    const trimmed = dateValue.trim();
+
+    // already yyyy-mm-dd
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  }
+
+  if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+    return dateValue.toISOString().slice(0, 10);
+  }
+
+  return new Date().toISOString().slice(0, 10);
+}
+
+function normalizeEvent(raw: any, index: number): TimelineEvent {
+  return {
+    id: String(raw.id || raw._id || crypto.randomUUID() || `event-${index}`),
+    course: raw.course || raw.class || raw.subject || 'Unknown Course',
+    type: normalizeType(raw.type || raw.category || raw.kind || 'Homework'),
+    title: raw.title || raw.name || raw.assignment || raw.task || 'Untitled Task',
+    date: normalizeDate(raw.date || raw.dueDate || raw.due_date || raw.deadline),
+    status: raw.status === 'Done' || raw.status === 'In progress' || raw.status === 'Not started'
+      ? raw.status
+      : 'Not started',
+    sourceFile: raw.sourceFile || raw.source_file || raw.fileName || raw.filename || '',
+    points: raw.points !== undefined ? Number(raw.points) : undefined,
+    weight: raw.weight !== undefined ? Number(raw.weight) : undefined
+  };
+}
+
+function extractEventsFromResponse(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.events)) return data.events;
+  if (Array.isArray(data.assignments)) return data.assignments;
+  if (Array.isArray(data.timeline)) return data.timeline;
+  if (Array.isArray(data.tasks)) return data.tasks;
+  return [];
+}
+
+/* ---------------- component ---------------- */
+
+interface TimelineDashboardProps {
+  view: string;
+}
+
+const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'pink');
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
@@ -23,36 +129,17 @@ const TimelineDashboard: React.FC = () => {
   const [upcomingOnly, setUpcomingOnly] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  // Modal State
   const [mCourse, setMCourse] = useState('');
   const [mType, setMType] = useState('Homework');
   const [mTitle, setMTitle] = useState('');
   const [mDate, setMDate] = useState(new Date().toISOString().slice(0, 10));
 
-  const refreshEvents = () => {
-    const saved = localStorage.getItem('events');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setEvents(Array.isArray(parsed) ? parsed : []);
-      } catch (e) {
-        console.error("Failed to parse events from localStorage:", e);
-        setEvents([]);
-      }
-    }
-  };
-
-  // Load persistence
-  useEffect(() => {
-    refreshEvents();
-    applyTheme(theme);
-  }, []);
-
-  // Save persistence
-  useEffect(() => {
-    localStorage.setItem('events', JSON.stringify(events));
-  }, [events]);
+  // change this if your backend runs somewhere else
+  const API_BASE = 'http://localhost:5000';
+  const EVENTS_ENDPOINT = `${API_BASE}/events`;
 
   const applyTheme = (t: string) => {
     document.body.classList.remove('pink', 'mint', 'purple');
@@ -65,6 +152,69 @@ const TimelineDashboard: React.FC = () => {
     applyTheme(t);
   };
 
+  const loadFromLocalStorage = () => {
+    const saved = localStorage.getItem('events');
+
+    if (!saved) {
+      setEvents([]);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+      const rawEvents = extractEventsFromResponse(parsed);
+      const normalized = rawEvents.map(normalizeEvent);
+      setEvents(normalized);
+    } catch (err) {
+      console.error('Failed to parse localStorage events:', err);
+      setEvents([]);
+    }
+  };
+
+  const fetchEventsFromBackend = async () => {
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      const res = await fetch(EVENTS_ENDPOINT, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error(`Backend returned ${res.status}`);
+      }
+
+      const data = await res.json();
+      console.log('backend response:', data);
+
+      const rawEvents = extractEventsFromResponse(data);
+      const normalized = rawEvents.map(normalizeEvent);
+
+      setEvents(normalized);
+      localStorage.setItem('events', JSON.stringify(normalized));
+    } catch (err: any) {
+      console.error('Failed to fetch backend events:', err);
+      setErrorMsg('Could not load events from backend. Showing saved data if available.');
+      loadFromLocalStorage();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    applyTheme(theme);
+    fetchEventsFromBackend();
+  }, []);
+
+  useEffect(() => {
+    if (view === 'timeline') {
+      fetchEventsFromBackend();
+    }
+  }, [view]);
+
   const resetAll = () => {
     setEvents([]);
     setSelectedCourses(new Set());
@@ -73,21 +223,19 @@ const TimelineDashboard: React.FC = () => {
     setSortBy('date');
     setUpcomingOnly(false);
     setSearch('');
+    setErrorMsg('');
     localStorage.removeItem('events');
   };
 
   const toggleCourse = (course: string) => {
     const next = new Set(selectedCourses);
-    if (course === '__all') {
-      next.clear();
-    } else {
-      if (next.has(course)) next.delete(course);
-      else next.add(course);
-    }
+    if (course === '__all') next.clear();
+    else if (next.has(course)) next.delete(course);
+    else next.add(course);
     setSelectedCourses(next);
   };
 
-  const saveTask = () => {
+  const saveTask = async () => {
     const newEvent: TimelineEvent = {
       id: crypto.randomUUID(),
       course: mCourse.trim() || 'Course',
@@ -97,56 +245,121 @@ const TimelineDashboard: React.FC = () => {
       status: 'Not started',
       sourceFile: ''
     };
-    setEvents([...events, newEvent]);
+
+    try {
+      const res = await fetch(EVENTS_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newEvent)
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to save event: ${res.status}`);
+      }
+
+      const savedEvent = await res.json();
+      const normalizedSaved = normalizeEvent(savedEvent, events.length);
+
+      const updated = [...events, normalizedSaved];
+      setEvents(updated);
+      localStorage.setItem('events', JSON.stringify(updated));
+    } catch (err) {
+      console.error('POST failed, saving locally only:', err);
+
+      const updated = [...events, newEvent];
+      setEvents(updated);
+      localStorage.setItem('events', JSON.stringify(updated));
+    }
+
     setIsModalOpen(false);
+    setMCourse('');
+    setMTitle('');
+    setMType('Homework');
+    setMDate(new Date().toISOString().slice(0, 10));
+  };
+
+  const setStatus = async (id: string, status: 'Not started' | 'In progress' | 'Done') => {
+    const updated = events.map(e => e.id === id ? { ...e, status } : e);
+    setEvents(updated);
+    localStorage.setItem('events', JSON.stringify(updated));
+
+    try {
+      await fetch(`${EVENTS_ENDPOINT}/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      });
+    } catch (err) {
+      console.error('Failed to update status in backend:', err);
+    }
+  };
+
+  const toggleStatus = (id: string, current: string) => {
+    const nextStatus = current === 'Done' ? 'Not started' : 'Done';
+    setStatus(id, nextStatus);
+  };
+
+  const removeEvent = async (id: string) => {
+    const updated = events.filter(e => e.id !== id);
+    setEvents(updated);
+    localStorage.setItem('events', JSON.stringify(updated));
+
+    try {
+      await fetch(`${EVENTS_ENDPOINT}/${id}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.error('Failed to delete from backend:', err);
+    }
   };
 
   const filteredEvents = useMemo(() => {
     const q = search.trim().toLowerCase();
     const now = new Date().toISOString().slice(0, 10);
+
     let out = [...events];
 
     if (selectedCourses.size > 0) {
       out = out.filter(e => selectedCourses.has(e.course));
     }
+
     if (selectedType !== 'all') {
       out = out.filter(e => e.type === selectedType);
     }
+
     if (statusFilter !== 'all') {
       out = out.filter(e => e.status === statusFilter);
     }
+
     if (upcomingOnly) {
       out = out.filter(e => e.date >= now);
     }
+
     if (q) {
-      out = out.filter(e => `${e.course} ${e.title}`.toLowerCase().includes(q));
+      out = out.filter(e =>
+        `${e.course} ${e.title} ${e.type}`.toLowerCase().includes(q)
+      );
     }
 
-    if (sortBy === 'date') out.sort((a, b) => a.date.localeCompare(b.date));
-    if (sortBy === 'course') out.sort((a, b) => (a.course + a.date).localeCompare(b.course + b.date));
-    if (sortBy === 'type') out.sort((a, b) => (a.type + a.date).localeCompare(b.type + b.date));
+    if (sortBy === 'date') {
+      out.sort((a, b) => a.date.localeCompare(b.date));
+    } else if (sortBy === 'course') {
+      out.sort((a, b) => (a.course + a.date).localeCompare(b.course + b.date));
+    } else if (sortBy === 'type') {
+      out.sort((a, b) => (a.type + a.date).localeCompare(b.type + b.date));
+    }
 
     return out;
   }, [events, selectedCourses, selectedType, statusFilter, upcomingOnly, search, sortBy]);
 
-  const courses = useMemo(() => {
-    return Array.from(new Set(events.map(e => e.course))).sort();
-  }, [events]);
-
-  const toggleStatus = (id: string, current: string) => {
-    setEvents(events.map(e => {
-      if (e.id !== id) return e;
-      return { ...e, status: current === 'Done' ? 'Not started' : 'Done' };
-    }));
-  };
-
-  const setStatus = (id: string, status: any) => {
-    setEvents(events.map(e => e.id === id ? { ...e, status } : e));
-  };
-
-  const removeEvent = (id: string) => {
-    setEvents(events.filter(e => e.id !== id));
-  };
+  const courses = useMemo(
+    () => Array.from(new Set(events.map(e => e.course))).sort(),
+    [events]
+  );
 
   return (
     <div className="dashboard">
@@ -158,12 +371,15 @@ const TimelineDashboard: React.FC = () => {
 
         <div className="heroActions">
           <button className="btn ghost" onClick={resetAll}>Reset</button>
-          <button className="btn ghost" onClick={refreshEvents}>Build timeline</button>
-          <div className="themeWrap" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '0.9rem', color: '#718096' }}>Theme:</span>
-            <select 
-              className="select tiny" 
-              value={theme} 
+          <button className="btn ghost" onClick={fetchEventsFromBackend}>
+            {loading ? 'Loading...' : 'Build timeline'}
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,.55)' }}>Theme:</span>
+            <select
+              className="select tiny"
+              value={theme}
               onChange={(e) => handleThemeChange(e.target.value)}
             >
               <option value="pink">Pink</option>
@@ -171,24 +387,47 @@ const TimelineDashboard: React.FC = () => {
               <option value="purple">Purple</option>
             </select>
           </div>
-          <button className="btn primary" id="addBtn" onClick={() => {
-            setIsModalOpen(true);
-            setMDate(new Date().toISOString().slice(0,10));
-          }}>Add task</button>
+
+          <button
+            className="btn primary"
+            id="addBtn"
+            onClick={() => {
+              setIsModalOpen(true);
+              setMDate(new Date().toISOString().slice(0, 10));
+            }}
+          >
+            Add task
+          </button>
         </div>
       </header>
+
+      {errorMsg && (
+        <div
+          style={{
+            marginBottom: '14px',
+            padding: '10px 14px',
+            borderRadius: '10px',
+            background: 'rgba(255, 120, 120, 0.12)',
+            border: '1px solid rgba(255, 120, 120, 0.24)',
+            color: 'rgba(255,255,255,.86)'
+          }}
+        >
+          {errorMsg}
+        </div>
+      )}
 
       <section className="controls cardWide" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
         <div className="controlsRow">
           <div className="chipGroup">
-            <button 
+            <button
               className={`chip ${selectedCourses.size === 0 ? 'active' : ''}`}
               onClick={() => toggleCourse('__all')}
             >
               All courses
             </button>
+
             {courses.map(c => (
-              <button 
+              <button
                 key={c}
                 className={`chip ${selectedCourses.has(c) ? 'active' : ''}`}
                 onClick={() => toggleCourse(c)}
@@ -202,7 +441,7 @@ const TimelineDashboard: React.FC = () => {
         <div className="controlsRow" style={{ width: '100%' }}>
           <div className="chipGroup">
             {['all', 'Homework', 'Quiz', 'Exam', 'Project', 'Reading'].map(t => (
-              <button 
+              <button
                 key={t}
                 className={`chip ${selectedType === t ? 'active' : ''}`}
                 onClick={() => setSelectedType(t)}
@@ -226,16 +465,28 @@ const TimelineDashboard: React.FC = () => {
           </select>
 
           <label className="toggle">
-            <input type="checkbox" checked={upcomingOnly} onChange={(e) => setUpcomingOnly(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={upcomingOnly}
+              onChange={(e) => setUpcomingOnly(e.target.checked)}
+            />
             <span>Upcoming only</span>
           </label>
 
-          <input 
-            className="input" 
-            placeholder="Search…" 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
-            style={{ flex: 1, minWidth: '150px', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0' }}
+          <input
+            className="input"
+            placeholder="Search…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              flex: 1,
+              minWidth: '150px',
+              padding: '8px 10px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,.14)',
+              background: 'rgba(255,255,255,.06)',
+              color: 'rgba(255,255,255,.86)'
+            }}
           />
 
           <div className="countPill">{filteredEvents.length} items</div>
@@ -243,55 +494,96 @@ const TimelineDashboard: React.FC = () => {
       </section>
 
       <section className="cardWide timelineWrap">
-        {filteredEvents.length === 0 ? (
+        {loading && events.length === 0 ? (
+          <div className="emptyState">Loading timeline...</div>
+        ) : filteredEvents.length === 0 ? (
           <div className="emptyState">No items match your filters.</div>
         ) : (
           <div className="timeline">
-            {filteredEvents.map((e, i) => (
-              <div key={e.id} className={`item ${i % 2 === 0 ? 'left' : 'right'}`}>
-                <div className="card">
-                  <div className="cardTop">
-                    <div className="cardTitle">{e.course} — {e.title}</div>
-                    <div className="cardMeta">{e.date}</div>
-                  </div>
-                  <div className="badges">
-                    <span className="badge">{e.type}</span>
-                    <span className={`badge ${e.status === 'Done' ? 'statusDone' : e.status === 'In progress' ? 'statusProg' : ''}`}>
-                      {e.status}
-                    </span>
-                    {e.points !== undefined && <span className="badge">Pts: {e.points}</span>}
-                    {e.weight !== undefined && <span className="badge">Wt: {e.weight}%</span>}
-                  </div>
-                  <div className="cardActions">
-                    <button className="smallBtn" onClick={() => setStatus(e.id, 'In progress')}>In progress</button>
-                    <button className="smallBtn" onClick={() => toggleStatus(e.id, e.status)}>
-                      {e.status === 'Done' ? 'Undo' : 'Done'}
-                    </button>
-                    <button className="smallBtn danger" onClick={() => removeEvent(e.id)}>Delete</button>
+            {filteredEvents.map((e, i) => {
+              const { label: countdownLabel, daysAway } = getRelativeDate(e.date);
+              const typeClass = typeToClass(e.type);
+              const isOverdue = daysAway < 0 && e.status !== 'Done';
+              const isDueSoon = daysAway >= 0 && daysAway <= 3 && e.status !== 'Done';
+
+              return (
+                <div key={e.id} className={`item ${i % 2 === 0 ? 'left' : 'right'}`}>
+                  <div className={`card ${typeClass}`}>
+                    <div className="cardTop">
+                      <div className="cardTitle">
+                        {typeEmoji(e.type)} {e.course} — {e.title}
+                      </div>
+                      <div className="cardMeta">{e.date}</div>
+                    </div>
+
+                    <div className="badges">
+                      <span className="badge">{e.type}</span>
+                      <span className={`badge ${e.status === 'Done' ? 'statusDone' : e.status === 'In progress' ? 'statusProg' : ''}`}>
+                        {e.status}
+                      </span>
+                      {isOverdue && <span className="badge urgentOverdue">⚠ Overdue</span>}
+                      {isDueSoon && <span className="badge urgentSoon">🔥 Due Soon</span>}
+                      <span className="countdown">{countdownLabel}</span>
+                    </div>
+
+                    {(e.points !== undefined || e.weight !== undefined) && (
+                      <div className="statsRow">
+                        {e.points !== undefined && (
+                          <div className="stat">
+                            <span className="statLabel">Points</span>
+                            <span className="statValue">{e.points}</span>
+                          </div>
+                        )}
+                        {e.weight !== undefined && (
+                          <div className="stat">
+                            <span className="statLabel">Weight</span>
+                            <span className="statValue">{e.weight}%</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="cardActions">
+                      <button className="smallBtn" onClick={() => setStatus(e.id, 'In progress')}>
+                        In progress
+                      </button>
+                      <button className="smallBtn" onClick={() => toggleStatus(e.id, e.status)}>
+                        {e.status === 'Done' ? 'Undo' : 'Done'}
+                      </button>
+                      <button className="smallBtn danger" onClick={() => removeEvent(e.id)}>
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
 
-      {/* Modal */}
       {isModalOpen && (
         <>
-          <div className="modalOverlay" onClick={() => setIsModalOpen(false)}></div>
+          <div className="modalOverlay" onClick={() => setIsModalOpen(false)} />
           <div className="modal">
             <div className="modalTop">
               <div className="modalTitle">Add task</div>
-              <button className="iconBtn" onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+              <button className="iconBtn" onClick={() => setIsModalOpen(false)}>×</button>
             </div>
 
             <div className="modalGrid">
-              <label className="label">Course
-                <input className="input" value={mCourse} onChange={(e) => setMCourse(e.target.value)} placeholder="CS 1337" style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0' }} />
+              <label className="label">
+                Course
+                <input
+                  className="input"
+                  value={mCourse}
+                  onChange={(e) => setMCourse(e.target.value)}
+                  placeholder="CS 1337"
+                />
               </label>
 
-              <label className="label">Type
+              <label className="label">
+                Type
                 <select className="select" value={mType} onChange={(e) => setMType(e.target.value)}>
                   <option>Homework</option>
                   <option>Quiz</option>
@@ -301,12 +593,24 @@ const TimelineDashboard: React.FC = () => {
                 </select>
               </label>
 
-              <label className="label">Title
-                <input className="input" value={mTitle} onChange={(e) => setMTitle(e.target.value)} placeholder="Homework: Arrays practice" style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0' }} />
+              <label className="label">
+                Title
+                <input
+                  className="input"
+                  value={mTitle}
+                  onChange={(e) => setMTitle(e.target.value)}
+                  placeholder="Homework: Arrays practice"
+                />
               </label>
 
-              <label className="label">Due date
-                <input className="input" type="date" value={mDate} onChange={(e) => setMDate(e.target.value)} style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0' }} />
+              <label className="label">
+                Due date
+                <input
+                  className="input"
+                  type="date"
+                  value={mDate}
+                  onChange={(e) => setMDate(e.target.value)}
+                />
               </label>
             </div>
 

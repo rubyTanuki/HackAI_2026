@@ -197,6 +197,7 @@ function App() {
         }
         setFilesToUpload(prev => prev.filter(f => !readyItems.includes(f)));
         setHasUploaded(true);
+        setView('timeline');
       } else {
         let data;
         try { data = await response.json(); } catch (e) { }
@@ -244,7 +245,7 @@ function App() {
           </Show>
           <Show when="signed-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <span style={{ fontWeight: 500, color: '#4a5568' }}>{user?.fullName}</span>
+              <span style={{ fontWeight: 500, color: 'rgba(255,255,255,.70)' }}>{user?.fullName}</span>
               <UserButton />
             </div>
           </Show>
@@ -254,7 +255,7 @@ function App() {
       {/* Main App Content - Only visible if logged in */}
       <Show when="signed-in">
         {view === 'timeline' ? (
-          <TimelineDashboard />
+          <TimelineDashboard view={view} />
         ) : (
           <>
             <header className="hero">
@@ -291,7 +292,7 @@ function App() {
                     <svg style={{ width: 50, height: 50, color: '#4361ee', marginBottom: 15 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                     </svg>
-                    <div className="dzTitle">Drag & drop or <span style={{ color: '#4361ee', textDecoration: 'underline' }}>click to browse</span></div>
+                    <div className="dzTitle">Drag & drop or <span style={{ color: '#58c4ff', textDecoration: 'underline' }}>click to browse</span></div>
                     <div className="dzHint">Supports PDF, DOCX, and TXT files</div>
                   </div>
 
@@ -309,7 +310,7 @@ function App() {
 
                   <div className="fileList" id="fileList">
                     {filesToUpload.length === 0 && (
-                      <div style={{ color: '#a0aec0', textAlign: 'center', padding: '40px 0' }}>
+                      <div style={{ color: 'rgba(255,255,255,.40)', textAlign: 'center', padding: '40px 0' }}>
                         No files added yet.<br />Drag some over!
                       </div>
                     )}
@@ -324,7 +325,7 @@ function App() {
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a0aec0' }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.40)' }}
                         >
                           <svg style={{ width: 20, height: 20 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -343,7 +344,7 @@ function App() {
                   )}
 
                   {hasUploaded && (
-                    <div style={{ marginTop: 15, borderTop: '1px solid #edf2f7', paddingTop: '15px' }}>
+                    <div style={{ marginTop: 15, borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: '15px' }}>
                       <button className="btn primary" onClick={() => setView('timeline')} style={{ width: '100%', background: '#38a169' }}>
                         View Timeline →
                       </button>
@@ -359,8 +360,8 @@ function App() {
       {/* Main App Content - Only visible if logged OUT */}
       <Show when="signed-out">
         <main className="center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '10px', color: '#4361ee' }}>Welcome to Syllabus Timeline</h1>
-          <p style={{ fontSize: '1.2rem', color: '#718096', marginBottom: '30px' }}>Please sign in using Clerk to generate your course timeline via text extraction.</p>
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '10px', color: '#58c4ff' }}>Welcome to Syllabus Timeline</h1>
+          <p style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,.50)', marginBottom: '30px' }}>Please sign in using Clerk to generate your course timeline via text extraction.</p>
           <SignInButton mode="modal">
             <button className="btn primary" style={{ padding: '15px 30px', fontSize: '1.2rem' }}>Sign In</button>
           </SignInButton>
