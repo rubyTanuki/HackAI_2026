@@ -174,6 +174,12 @@ async def study_plan_endpoint(user_id: str = Depends(verify_token)):
     enrolled_syllabi = user_doc.get("enrolled_syllabi", [])
     if not enrolled_syllabi:
         return {"tasks": []}
+        
+    # Return cached study plan if it already exists
+    existing_plan = user_doc.get("study_plan")
+    if existing_plan and existing_plan.get("tasks") and len(existing_plan.get("tasks")) > 0:
+        print("Returning cached study plan")
+        return existing_plan
     
     # call gemini with all enrolled syllabi
     all_deadlines = []
