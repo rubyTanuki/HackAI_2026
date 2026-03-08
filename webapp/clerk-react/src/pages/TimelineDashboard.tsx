@@ -3,6 +3,7 @@ import type { FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Timeline.css';
 
+
 interface TimelineEvent {
   id: string;
   course: string;
@@ -288,9 +289,9 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
           <button className="btn ghost" onClick={loadEvents}>
             Refresh timeline
           </button>
-
-          <button 
-            onClick={() => navigate('/study-plan')}
+          
+          <button
+            onClick={() => navigate('/availability-quiz')}
             style={{
               background: 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',
               color: '#12131a',

@@ -257,10 +257,7 @@ export default function StudyPlanPage() {
         <div className="sp-header-row">
           <div>
             <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
-              <div className="sp-back-badge" onClick={() => navigate("/timeline")}>
-                <ChevronLeft className="sp-icon-small" />
-                Back to Timeline
-              </div>
+             
               {status === "success" && tasks.length > 0 && (
                 <div 
                   className="sp-back-badge" 

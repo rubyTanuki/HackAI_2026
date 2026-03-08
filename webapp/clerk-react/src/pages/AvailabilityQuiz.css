@@ -1,0 +1,384 @@
+/* AvailabilityQuiz.css */
+
+.aq-max-width {
+  width: 100%;
+  max-width: 42rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Progress Row */
+.aq-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.aq-dot {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.aq-dot.active {
+  background: rgba(255, 91, 204, 0.15);
+  border-color: #ff5bcc;
+  color: #ff5bcc;
+  box-shadow: 0 0 15px rgba(255, 91, 204, 0.3);
+}
+
+.aq-dot.done {
+  background: #ff5bcc;
+  border-color: #ff5bcc;
+  color: #fff;
+}
+
+.aq-progress-line {
+  height: 2px;
+  width: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.aq-progress-line.done {
+  background: #ff5bcc;
+}
+
+/* Intro Step */
+.aq-intro-badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  background: rgba(88, 196, 255, 0.15);
+  color: #58c4ff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(88, 196, 255, 0.3);
+}
+
+.aq-intro-title {
+  font-size: 3rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.aq-grad-text {
+  background: linear-gradient(135deg, #ff9ce4, #58c4ff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.aq-intro-sub {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  max-width: 32rem;
+  margin: 0 auto 2.5rem;
+  line-height: 1.6;
+}
+
+.aq-cta-btn {
+  background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%);
+  color: #12131a;
+  border: none;
+  padding: 1rem 2.5rem;
+  border-radius: 9999px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(255, 154, 158, 0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.aq-cta-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(255, 154, 158, 0.6);
+}
+
+.aq-cta-btn:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.aq-intro-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 3rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.aq-footer-pill {
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.3rem 0.8rem;
+  border-radius: 1rem;
+}
+
+/* Cards */
+.sp-card {
+  background: rgba(30, 31, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 2.5rem;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.aq-step-badge {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.aq-card-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.aq-card-sub {
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 2.5rem;
+}
+
+/* Days Grid */
+.aq-days-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.aq-day-pill {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(25% - 0.75rem);
+  min-width: 90px;
+  padding: 1rem 0.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.aq-day-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.aq-day-pill.sel-pink {
+  background: rgba(255, 91, 204, 0.1);
+  border-color: #ff5bcc;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 91, 204, 0.15);
+}
+
+.aq-day-pill.sel-blue {
+  background: rgba(88, 196, 255, 0.1);
+  border-color: #58c4ff;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(88, 196, 255, 0.15);
+}
+
+.aq-day-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.aq-day-full {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.aq-checkmark {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.8rem;
+  color: inherit;
+}
+
+/* Time Slots Grid */
+.aq-list-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.aq-list-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.aq-list-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.aq-list-card.sel-pink {
+  background: rgba(255, 91, 204, 0.1);
+  border-color: #ff5bcc;
+}
+
+.aq-list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.aq-list-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  transition: color 0.2s;
+}
+
+.aq-list-label.active {
+  color: #fff;
+}
+
+.aq-list-sub {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.aq-list-check {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: transparent;
+  transition: all 0.2s;
+}
+
+.aq-list-check.active {
+  background: #ff5bcc;
+  border-color: #ff5bcc;
+  color: #fff;
+}
+
+/* Hours Grid */
+.aq-hours-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.aq-hour-card {
+  padding: 1rem 1.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.aq-hour-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.aq-hour-card.sel-blue {
+  background: rgba(88, 196, 255, 0.1);
+  border-color: #58c4ff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(88, 196, 255, 0.15);
+}
+
+.aq-hour-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+.aq-hour-label.active {
+  color: #fff;
+}
+
+.aq-hours-preview {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgba(88, 196, 255, 0.05);
+  border: 1px dashed rgba(88, 196, 255, 0.3);
+}
+
+.aq-selection-hint {
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Actions */
+.aq-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.aq-back-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  transition: color 0.2s;
+}
+
+.aq-back-btn:hover {
+  color: #fff;
+}
