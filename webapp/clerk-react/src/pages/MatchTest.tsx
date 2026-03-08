@@ -21,6 +21,7 @@ export default function MatchTest() {
 
   const [matchId, setMatchId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("Not Queued");
+  const [mode, setMode] = useState<string>("random");
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [score, setScore] = useState<number>(0);
   const [results, setResults] = useState<any>(null);
@@ -82,6 +83,7 @@ export default function MatchTest() {
         body: JSON.stringify({
           course_prefix: prefix,
           course_code: code,
+          mode: mode,
         }),
       });
 
@@ -353,19 +355,25 @@ export default function MatchTest() {
             </div>
 
             <div className="mt-input-row">
-              <input
-                className="mt-input"
-                value={coursePrefix}
-                onChange={(e) => setCoursePrefix(e.target.value)}
-                placeholder="Prefix (MATH)"
-                disabled={status !== "Not Queued" && status !== "Error"}
-              />
-              <input
-                className="mt-input"
-                value={courseCode}
-                onChange={(e) => setCourseCode(e.target.value)}
-                placeholder="Code (3345)"
-              />
+              {courses.length === 0 ? (
+                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.9rem", padding: "0.5rem" }}>
+                  No courses found. Try uploading a syllabus in the Timeline!
+                </p>
+              ) : (
+                <select
+                  className="mt-input"
+                  style={{ appearance: "auto" }}
+                  value={selectedCourseStr}
+                  onChange={(e) => setSelectedCourseStr(e.target.value)}
+                  disabled={status !== "Not Queued" && status !== "Error"}
+                >
+                  {courses.map((c: any, idx) => (
+                    <option key={idx} value={`${c.course_prefix}-${c.course_code}`}>
+                      {c.course_prefix} {c.course_code} {c.course_name ? `- ${c.course_name}` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="mt-action-row" style={{ marginTop: "16px", marginBottom: "16px", display: "flex", gap: "8px" }}>
@@ -406,43 +414,7 @@ export default function MatchTest() {
               )}
             </div>
           </div>
-
-          <div className="mt-input-row">
-            {courses.length === 0 ? (
-              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.9rem", padding: "0.5rem" }}>
-                No courses found. Try uploading a syllabus in the Timeline!
-              </p>
-            ) : (
-              <select
-                className="mt-input"
-                style={{ appearance: "auto" }}
-                value={selectedCourseStr}
-                onChange={(e) => setSelectedCourseStr(e.target.value)}
-                disabled={status !== "Not Queued" && status !== "Error"}
-              >
-                {courses.map((c: any, idx) => (
-                  <option key={idx} value={`${c.course_prefix}-${c.course_code}`}>
-                    {c.course_prefix} {c.course_code} {c.course_name ? `- ${c.course_name}` : ""}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          <div className="mt-action-row">
-            {(status === "Not Queued" || status === "Error") && (
-              <button className="mt-btn mt-btn--primary" onClick={handleQueue}>
-                Join Queue
-              </button>
-            )}
-
-            {(status === "waiting" || status === "Joining Queue...") && (
-              <button className="mt-btn mt-btn--danger" onClick={handleAbort}>
-                Abort Queue
-              </button>
-            )}
-          </div>
-        </div>
+        )}
 
         <div className="mt-player-row">
           <div className="mt-player-card mt-player-card--you">
