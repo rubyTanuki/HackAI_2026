@@ -10,6 +10,9 @@ load_dotenv()
 import hashlib
 import requests
 import random
+import re
+import io
+import PyPDF2
 from bson import ObjectId
 from clerk import verify_token
 from mongo import users_collection, syllabi_collection, matches_collection
@@ -34,6 +37,70 @@ nebula_url="https://api.utdnebula.com/course/sections"
 
 @app.post("/timeline")
 async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(verify_token)):
+    courses_url="https://api.utdnebula.com/course"
+    uris = []
+    for course in request.courses:
+        print(f"Querying Nebula for {course} Syllabus...")
+        match = re.search(r"([A-Za-z]+)[\s-]*(\d{4})", course)
+        if not match:
+            print(f"Skipping incorrectly formatted course string: {course}")
+            continue
+            
+        course_prefix = match.group(1).upper()
+        course_code = match.group(2)
+
+        best_year = 0
+        best_year_id=""
+        
+        params = {
+            "subject_prefix": course_prefix,
+            "course_number": course_code
+        }
+                
+        headers = {
+            "x-api-key": os.getenv("NEBULA_API_KEY", "")
+        }
+            
+        try:
+            nebula_response = requests.get(courses_url, params=params, headers=headers, timeout=5)
+            if nebula_response.status_code == 200:
+                nebula_data = nebula_response.json().get('data') or []
+                for section in nebula_data:
+                    year = int(section.get('catalog_year'))
+                    if year and year > best_year:
+                        best_year = year
+                        best_year_id = section.get('_id')
+        except Exception as e:
+            print(f"Warning: Nebula request failed: {e}")
+
+        if best_year_id:
+            section_url=f"https://api.utdnebula.com/course/{best_year_id}/sections"
+            try:
+                course_response = requests.get(section_url, params=params, headers=headers, timeout=5)
+                if course_response.status_code == 200:
+                    course_data = course_response.json().get('data') or []
+                    for section in course_data:
+                        uri = section.get('syllabus_uri')
+                        if uri:
+                            uris.append(uri)
+                            break
+            except Exception as e:
+                print(f"Warning: Nebula request failed: {e}")
+        
+    for uri in uris:
+        try:
+            res = requests.get(uri, timeout=10)
+            if res.status_code == 200:
+                reader = PyPDF2.PdfReader(io.BytesIO(res.content))
+                text = ""
+                for page in reader.pages:
+                    extracted = page.extract_text()
+                    if extracted:
+                        text += extracted + "\n"
+                request.syllabi.append(text)
+        except Exception as e:
+            print(f"Warning: Failed to parse syllabus at {uri}: {e}")
+    
     all_deadlines = []
     syllabi_to_process = []
     all_syllabus_hashes = []

@@ -18,6 +18,7 @@ class Deadline(BaseModel):
 
 class TimelineRequest(BaseModel):
     syllabi: List[str]
+    courses: List[str]
 
 class TimelineResponse(BaseModel):
     deadlines: List[Deadline]
