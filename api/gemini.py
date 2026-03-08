@@ -17,7 +17,7 @@ class Deadline(BaseModel):
     weight: float = Field(description="Weight of the deadline (default to 1.0 if not specified)")
 
 class Syllabus(BaseModel):
-    course_prefix: str = Field(description="Course prefix (e.g. MATH, CS, HIST)")
+    course_prefix: str = Field(description="Course prefix (e.g. MATH, CS, HIST). If the prefix has a /, choose the first of the options.")
     course_code: str = Field(description="Course code/number (e.g. 3345, 2414)")
     section_number: str = Field(description="Section number (e.g. 004, 501)")
     course_name: str = Field(description="Course name (e.g. Discrete Mathematics, Calculus II)")

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import hashlib
+import requests
 from clerk import verify_token
 from mongo import users_collection, syllabi_collection
 from models import TimelineRequest, TimelineResponse, Deadline
@@ -26,13 +27,17 @@ security = HTTPBearer()
 
 gemini = GeminiClient()
 
+nebula_url="https://api.utdnebula.com/course/sections"
+
 @app.post("/timeline")
 async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(verify_token)):
     all_deadlines = []
     syllabi_to_process = []
+    all_syllabus_hashes = []
     
     for syllabus in request.syllabi:
         text_hash = hashlib.sha256(syllabus.encode('utf-8')).hexdigest()
+        all_syllabus_hashes.append(text_hash)
         
         cached_doc = await syllabi_collection.find_one({"_id": text_hash})
         if cached_doc:
@@ -53,6 +58,7 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
             section_number = ""
             pf_first = ""
             pf_last = ""
+            difficulty = ""
             
             # response could be a dict (on error) or a Pydantic Syllabus object
             if isinstance(response, dict):
@@ -72,7 +78,40 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
                 pf_first = getattr(response, "professor_first_name", "")
                 pf_last = getattr(response, "professor_last_name", "")
                 
-            combined_course = f"{course_prefix} {course_code}".strip()
+            combined_course = f"{course_prefix}{course_code}".strip()
+
+            # get difficulty and any missed info from nebula
+            params = {}
+            if course_prefix and course_prefix != "Unknown":
+                params["subject_prefix"] = course_prefix
+            if course_code and course_code != "Course":
+                params["course_number"] = course_code
+                
+            headers = {
+                "x-api-key": os.getenv("NEBULA_API_KEY", "")
+            }
+            
+            try:
+                nebula_response = requests.get(nebula_url, params=params, headers=headers, timeout=5)
+                if nebula_response.status_code == 200:
+                    nebula_data = nebula_response.json().get('data') or []
+                    for section in nebula_data:
+                        if section.get('section_number') == section_number:
+                            distribution = section.get('grade_distribution') or []
+                            if distribution and len(distribution) > 0:
+                                total_students = sum(distribution)
+                                if total_students > 0:
+                                    weighted_sum = sum(i * count for i, count in enumerate(distribution))
+                                    avg_index = weighted_sum / total_students
+                                    
+                                    max_index = len(distribution) - 1
+                                    difficulty = (avg_index / max_index) * 10.0
+                                    difficulty = round(difficulty, 1)
+                            break
+            except Exception as e:
+                print(f"Warning: Nebula request failed: {e}")
+                
+            
             
             # Inject top-level course info into each deadline for frontend convenience
             for d in new_deadlines:
@@ -83,6 +122,8 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
                 d["section_number"] = section_number
                 d["professor_first_name"] = pf_first
                 d["professor_last_name"] = pf_last
+                if difficulty:
+                    d["difficulty"] = difficulty
                 
             if new_deadlines or not isinstance(response, dict) or "error" not in response:
                 # cache it even if empty to avoid calling gemini multiple times for bad text
@@ -100,4 +141,37 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
             for d in new_deadlines:
                 all_deadlines.append(Deadline(**d))
 
+    if all_syllabus_hashes:
+        await users_collection.update_one(
+            {"_id": user_id},
+            {
+                "$setOnInsert": {
+                    "leaderboard_rank": 0,
+                    "study_plan": {
+                        "generated_on": None,
+                        "tasks": []
+                    }
+                },
+                "$addToSet": {
+                    "enrolled_syllabi": {"$each": all_syllabus_hashes}
+                }
+            },
+            upsert=True
+        )
+
     return TimelineResponse(deadlines=all_deadlines)
+
+
+async def study_plan_endpoint(user_id: str = Depends(verify_token)):
+    user_doc = await users_collection.find_one({"_id": user_id})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    enrolled_syllabi = user_doc.get("enrolled_syllabi", [])
+    
+    # call gemini with all enrolled syllabi
+
+    # save study plan to db
+
+    # return study plan
+    

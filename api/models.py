@@ -9,6 +9,7 @@ class Deadline(BaseModel):
     section_number: str | None = None
     professor_first_name: str | None = None
     professor_last_name: str | None = None
+    difficulty: float | None = None
     title: str
     type: str
     due_date: str
