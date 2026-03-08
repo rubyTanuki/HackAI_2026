@@ -9,3 +9,4 @@ client = AsyncIOMotorClient(MONGODB_URL)
 db = client.LockedIn
 users_collection = db.users
 syllabi_collection = db.syllabi
+matches_collection = db.matches
