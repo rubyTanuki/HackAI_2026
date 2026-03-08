@@ -28,27 +28,7 @@ gemini = GeminiClient()
 
 @app.post("/timeline")
 async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(verify_token)):
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    gemini_responses = await gemini.parse_syllabi(request.syllabi)
-    
     all_deadlines = []
-    for response in gemini_responses:
-        # Handle both dict and Pydantic model returns
-        if hasattr(response, 'deadlines'):
-            deadlines = response.deadlines
-        elif isinstance(response, dict) and "deadlines" in response:
-            deadlines = response["deadlines"]
-        else:
-            continue
-
-        for d in deadlines:
-            if isinstance(d, dict):
-=======
-    all_deadlines = []
-=======
-    all_deadlines = []
->>>>>>> Stashed changes
     syllabi_to_process = []
     
     for syllabus in request.syllabi:
@@ -57,8 +37,6 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
         cached_doc = await syllabi_collection.find_one({"_id": text_hash})
         if cached_doc:
             for d in cached_doc.get("deadlines", []):
-<<<<<<< Updated upstream
-=======
                 all_deadlines.append(Deadline(**d))
         else:
             syllabi_to_process.append((syllabus, text_hash))
@@ -120,7 +98,6 @@ async def timeline_endpoint(request: TimelineRequest, user_id: str = Depends(ver
                 })
                 
             for d in new_deadlines:
->>>>>>> Stashed changes
                 all_deadlines.append(Deadline(**d))
         else:
             syllabi_to_process.append((syllabus, text_hash))
