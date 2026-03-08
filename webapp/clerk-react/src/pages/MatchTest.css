@@ -1,10 +1,7 @@
 .mt-page {
   min-height: 100vh;
   padding: 24px;
-  background:
-    radial-gradient(circle at top, rgba(88, 196, 255, 0.1), transparent 35%),
-    radial-gradient(circle at 20% 12%, rgba(255, 91, 204, 0.14), transparent 30%),
-    linear-gradient(180deg, #12131a 0%, #0e0e12 100%);
+  background: transparent;
   color: rgba(255, 255, 255, 0.92);
 }
 
@@ -466,10 +463,27 @@
     opacity: 0;
     transform: translateY(10px) scale(0.985);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+.mt-memory-card {
+  aspect-ratio: 3/2;
+  padding: 16px;
+  border-radius: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.mt-memory-card:hover:not(:disabled) {
+  filter: brightness(0.85);
 }
 
 @media (max-width: 900px) {
