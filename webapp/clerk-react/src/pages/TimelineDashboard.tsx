@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, FC } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import type { FC } from 'react';
 import './Timeline.css';
 
 interface TimelineEvent {
@@ -129,17 +130,12 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
   const [upcomingOnly, setUpcomingOnly] = useState(false);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+
 
   const [mCourse, setMCourse] = useState('');
   const [mType, setMType] = useState('Homework');
   const [mTitle, setMTitle] = useState('');
   const [mDate, setMDate] = useState(new Date().toISOString().slice(0, 10));
-
-  // change this if your backend runs somewhere else
-  const API_BASE = 'http://localhost:5000';
-  const EVENTS_ENDPOINT = `${API_BASE}/events`;
 
   const applyTheme = (t: string) => {
     document.body.classList.remove('pink', 'mint', 'purple');
@@ -171,47 +167,18 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
     }
   };
 
-  const fetchEventsFromBackend = async () => {
-    setLoading(true);
-    setErrorMsg('');
-
-    try {
-      const res = await fetch(EVENTS_ENDPOINT, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!res.ok) {
-        throw new Error(`Backend returned ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log('backend response:', data);
-
-      const rawEvents = extractEventsFromResponse(data);
-      const normalized = rawEvents.map(normalizeEvent);
-
-      setEvents(normalized);
-      localStorage.setItem('events', JSON.stringify(normalized));
-    } catch (err: any) {
-      console.error('Failed to fetch backend events:', err);
-      setErrorMsg('Could not load events from backend. Showing saved data if available.');
-      loadFromLocalStorage();
-    } finally {
-      setLoading(false);
-    }
+  const loadEvents = () => {
+    loadFromLocalStorage();
   };
 
   useEffect(() => {
     applyTheme(theme);
-    fetchEventsFromBackend();
+    loadEvents();
   }, []);
 
   useEffect(() => {
     if (view === 'timeline') {
-      fetchEventsFromBackend();
+      loadEvents();
     }
   }, [view]);
 
@@ -223,7 +190,6 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
     setSortBy('date');
     setUpcomingOnly(false);
     setSearch('');
-    setErrorMsg('');
     localStorage.removeItem('events');
   };
 
@@ -246,32 +212,9 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
       sourceFile: ''
     };
 
-    try {
-      const res = await fetch(EVENTS_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newEvent)
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to save event: ${res.status}`);
-      }
-
-      const savedEvent = await res.json();
-      const normalizedSaved = normalizeEvent(savedEvent, events.length);
-
-      const updated = [...events, normalizedSaved];
-      setEvents(updated);
-      localStorage.setItem('events', JSON.stringify(updated));
-    } catch (err) {
-      console.error('POST failed, saving locally only:', err);
-
-      const updated = [...events, newEvent];
-      setEvents(updated);
-      localStorage.setItem('events', JSON.stringify(updated));
-    }
+    const updated = [...events, newEvent];
+    setEvents(updated);
+    localStorage.setItem('events', JSON.stringify(updated));
 
     setIsModalOpen(false);
     setMCourse('');
@@ -285,17 +228,6 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
     setEvents(updated);
     localStorage.setItem('events', JSON.stringify(updated));
 
-    try {
-      await fetch(`${EVENTS_ENDPOINT}/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status })
-      });
-    } catch (err) {
-      console.error('Failed to update status in backend:', err);
-    }
   };
 
   const toggleStatus = (id: string, current: string) => {
@@ -308,13 +240,6 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
     setEvents(updated);
     localStorage.setItem('events', JSON.stringify(updated));
 
-    try {
-      await fetch(`${EVENTS_ENDPOINT}/${id}`, {
-        method: 'DELETE'
-      });
-    } catch (err) {
-      console.error('Failed to delete from backend:', err);
-    }
   };
 
   const filteredEvents = useMemo(() => {
@@ -371,8 +296,8 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
 
         <div className="heroActions">
           <button className="btn ghost" onClick={resetAll}>Reset</button>
-          <button className="btn ghost" onClick={fetchEventsFromBackend}>
-            {loading ? 'Loading...' : 'Build timeline'}
+          <button className="btn ghost" onClick={loadEvents}>
+            Refresh timeline
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -401,20 +326,7 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
         </div>
       </header>
 
-      {errorMsg && (
-        <div
-          style={{
-            marginBottom: '14px',
-            padding: '10px 14px',
-            borderRadius: '10px',
-            background: 'rgba(255, 120, 120, 0.12)',
-            border: '1px solid rgba(255, 120, 120, 0.24)',
-            color: 'rgba(255,255,255,.86)'
-          }}
-        >
-          {errorMsg}
-        </div>
-      )}
+      {/* Removed errorMsg rendering */}
 
       <section className="controls cardWide" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
         <div className="controlsRow">
@@ -494,9 +406,7 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
       </section>
 
       <section className="cardWide timelineWrap">
-        {loading && events.length === 0 ? (
-          <div className="emptyState">Loading timeline...</div>
-        ) : filteredEvents.length === 0 ? (
+        {filteredEvents.length === 0 ? (
           <div className="emptyState">No items match your filters.</div>
         ) : (
           <div className="timeline">

@@ -55,10 +55,12 @@ body {
 }
 
 .brand {
-  font-size: 24px;
-  font-weight: 700;
+  font-family: 'Bungee', cursive;
+  font-size: 28px;
+  font-weight: 400;
   color: #58c4ff;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .navLinks {
@@ -87,9 +89,13 @@ body {
 
 .heroTitle {
   margin: 0 0 10px;
-  font-size: clamp(2rem, 4vw, 2.7rem);
+  font-family: 'Bungee', cursive;
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
   line-height: 1.1;
+  font-weight: 400;
   color: rgba(255, 255, 255, 0.94);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .heroSub {
@@ -764,4 +770,4 @@ body {
     width: 100%;
     min-width: 0;
   }
-}
+}@keyframes spin {from {transform:rotate(0deg);} to {transform:rotate(360deg);}}
