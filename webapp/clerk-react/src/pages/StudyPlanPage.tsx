@@ -149,6 +149,19 @@ export default function StudyPlanPage() {
         const incomingTasks = Array.isArray(data?.tasks) ? data.tasks : [];
 
         if (!ignore) {
+          const rawEvents = localStorage.getItem('events');
+          const deadlines = rawEvents ? JSON.parse(rawEvents) : [];
+          
+          const cleanedDeadlines = deadlines.map((d: any) => ({
+            id: `deadline-${d.id || Math.random()}`,
+            title: d.title,
+            suggested_date: d.date || d.dueDate || d.due_date || d.deadline,
+            course: d.course || d.class || "General",
+            duration: 0,
+            completed: d.status === 'Done',
+            isDeadline: true
+          }));
+
           const cleaned = incomingTasks.map((task: any, index: number) => ({
             id: `${task.title}-${task.suggested_date}-${index}`,
             title: task.title,
@@ -156,16 +169,16 @@ export default function StudyPlanPage() {
             course: task.course || "General",
             duration: Number(task.duration || 0),
             completed: Boolean(task.completed),
+            isDeadline: false
           }));
 
-          const sorted = sortTasks(cleaned);
+          const merged = [...cleaned, ...cleanedDeadlines].filter(t => t.suggested_date);
+          const sorted = sortTasks(merged);
           setTasks(sorted);
 
-          if (sorted.length > 0) {
-            const firstDate = new Date(`${sorted[0].suggested_date}T00:00:00`);
-            setSelectedDate(firstDate);
-            setVisibleMonth(startOfMonth(firstDate));
-          }
+          const today = new Date();
+          setSelectedDate(today);
+          setVisibleMonth(startOfMonth(today));
 
           setStatus("success");
         }
@@ -369,13 +382,14 @@ export default function StudyPlanPage() {
                           return (
                             <div
                               key={task.id}
-                              className="sp-task-item"
-                              style={{
+                              className={task.isDeadline ? "sp-task-item sp-task-deadline" : "sp-task-item"}
+                              style={task.isDeadline ? {} : {
                                 backgroundColor: color.soft,
                                 borderColor: color.border,
                                 color: "#222741",
                               }}
                             >
+                              {task.isDeadline && <strong>[DUE] </strong>}
                               {task.title}
                             </div>
                           );
@@ -430,26 +444,30 @@ export default function StudyPlanPage() {
                       return (
                         <div
                           key={task.id}
-                          className="sp-selected-task"
-                          style={{ borderColor: color.border }}
+                          className={task.isDeadline ? "sp-selected-task sp-selected-deadline" : "sp-selected-task"}
+                          style={task.isDeadline ? {} : { borderColor: color.border }}
                         >
                           <div className="sp-selected-task-top">
                             <span
-                              className="sp-selected-task-course"
-                              style={{
+                              className={task.isDeadline ? "sp-selected-task-course sp-deadline-chip" : "sp-selected-task-course"}
+                              style={task.isDeadline ? {} : {
                                 backgroundColor: color.soft,
                                 color: "#222741",
                               }}
                             >
                               {task.course}
                             </span>
-                            <span className="sp-selected-task-duration">
-                              {task.duration} hr
-                            </span>
+                            {!task.isDeadline && (
+                              <span className="sp-selected-task-duration">
+                                {task.duration} hr
+                              </span>
+                            )}
                           </div>
                           <h4 className="sp-selected-task-title">{task.title}</h4>
                           <p className="sp-selected-task-status">
-                            {task.completed ? "Completed" : "Planned study block"}
+                            {task.isDeadline 
+                              ? (task.completed ? "Submitted" : "Action Required")
+                              : (task.completed ? "Completed" : "Planned study block")}
                           </p>
                         </div>
                       );

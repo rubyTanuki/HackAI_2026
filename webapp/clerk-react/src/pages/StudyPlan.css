@@ -664,6 +664,25 @@
   color: #ffd28d;
 }
 
+/* Deadline Specific Styling for Study Plan */
+.sp-task-deadline {
+  background: rgba(255, 91, 204, 0.25) !important;
+  border-color: rgba(255, 91, 204, 0.6) !important;
+  color: #ff9ce4 !important;
+  font-weight: 800 !important;
+}
+
+.sp-selected-deadline {
+  border-color: rgba(255, 91, 204, 0.4) !important;
+  background: rgba(255, 91, 204, 0.08) !important;
+}
+
+.sp-deadline-chip {
+  background: rgba(255, 91, 204, 0.2) !important;
+  color: #ff5bcc !important;
+  border: 1px solid rgba(255, 91, 204, 0.4) !important;
+}
+
 @media (max-width: 900px) {
   .sp-layout-grid {
     grid-template-columns: 1fr;

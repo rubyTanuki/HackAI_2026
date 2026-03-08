@@ -123,7 +123,6 @@ interface TimelineDashboardProps {
 
 const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'pink');
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
   const [selectedType, setSelectedType] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -136,17 +135,6 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
   const [mType, setMType] = useState('Homework');
   const [mTitle, setMTitle] = useState('');
   const [mDate, setMDate] = useState(new Date().toISOString().slice(0, 10));
-
-  const applyTheme = (t: string) => {
-    document.body.classList.remove('pink', 'mint', 'purple');
-    document.body.classList.add(t);
-  };
-
-  const handleThemeChange = (t: string) => {
-    setTheme(t);
-    localStorage.setItem('theme', t);
-    applyTheme(t);
-  };
 
   const loadFromLocalStorage = () => {
     const saved = localStorage.getItem('events');
@@ -172,7 +160,6 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
   };
 
   useEffect(() => {
-    applyTheme(theme);
     loadEvents();
   }, []);
 
@@ -294,14 +281,21 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
             <h1 className="heroTitle">Your timeline</h1>
             <p className="heroSub">Filter by course, type, status. Add tasks. Sort by due date.</p>
           </div>
-          
+        </div>
+
+        <div className="heroActions">
+          <button className="btn ghost" onClick={resetAll}>Reset</button>
+          <button className="btn ghost" onClick={loadEvents}>
+            Refresh timeline
+          </button>
+
           <button 
             onClick={() => navigate('/study-plan')}
             style={{
-              background: 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%)',
-              color: '#222741',
+              background: 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)',
+              color: '#12131a',
               border: 'none',
-              padding: '10px 20px',
+              padding: '9px 16px',
               borderRadius: '999px',
               fontWeight: 'bold',
               cursor: 'pointer',
@@ -309,8 +303,8 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
               transition: 'transform 0.2s, box-shadow 0.2s',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              fontSize: '0.95rem'
+              gap: '6px',
+              fontSize: '0.9rem'
             }}
             onMouseOver={(e) => {
               e.currentTarget.style.transform = 'translateY(-2px)';
@@ -321,28 +315,8 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
               e.currentTarget.style.boxShadow = '0 4px 15px rgba(255, 154, 158, 0.4)';
             }}
           >
-            <span>✨ See your custom study guide!</span>
+            ✨ See your custom study guide!
           </button>
-        </div>
-
-        <div className="heroActions">
-          <button className="btn ghost" onClick={resetAll}>Reset</button>
-          <button className="btn ghost" onClick={loadEvents}>
-            Refresh timeline
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,.55)' }}>Theme:</span>
-            <select
-              className="select tiny"
-              value={theme}
-              onChange={(e) => handleThemeChange(e.target.value)}
-            >
-              <option value="pink">Pink</option>
-              <option value="mint">Mint</option>
-              <option value="purple">Purple</option>
-            </select>
-          </div>
 
           <button
             className="btn primary"
@@ -441,64 +415,94 @@ const TimelineDashboard: FC<TimelineDashboardProps> = ({ view }) => {
           <div className="emptyState">No items match your filters.</div>
         ) : (
           <div className="timeline">
-            {filteredEvents.map((e, i) => {
-              const { label: countdownLabel, daysAway } = getRelativeDate(e.date);
-              const typeClass = typeToClass(e.type);
-              const isOverdue = daysAway < 0 && e.status !== 'Done';
-              const isDueSoon = daysAway >= 0 && daysAway <= 3 && e.status !== 'Done';
+            {sortBy === 'date' ? (
+              Object.entries(
+                filteredEvents.reduce((acc, e) => {
+                  const d = new Date(e.date + 'T00:00:00');
+                  const m = isNaN(d.getTime()) ? 'Unknown' : d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                  if (!acc[m]) acc[m] = [];
+                  acc[m].push(e);
+                  return acc;
+                }, {} as Record<string, TimelineEvent[]>)
+              ).map(([month, evs]) => (
+                <details key={month} open className="monthGroup">
+                  <summary className="monthLabel">
+                    <span className="monthLabelText">{month}</span>
+                  </summary>
+                  <div className="monthContent">
+                    {evs.map((e, i) => {
+                      const { label: countdownLabel, daysAway } = getRelativeDate(e.date);
+                      const typeClass = typeToClass(e.type);
+                      const isOverdue = daysAway < 0 && e.status !== 'Done';
+                      const isDueSoon = daysAway >= 0 && daysAway <= 3 && e.status !== 'Done';
 
-              return (
-                <div key={e.id} className={`item ${i % 2 === 0 ? 'left' : 'right'}`}>
-                  <div className={`card ${typeClass}`}>
-                    <div className="cardTop">
-                      <div className="cardTitle">
-                        {typeEmoji(e.type)} {e.course} — {e.title}
-                      </div>
-                      <div className="cardMeta">{e.date}</div>
-                    </div>
-
-                    <div className="badges">
-                      <span className="badge">{e.type}</span>
-                      <span className={`badge ${e.status === 'Done' ? 'statusDone' : e.status === 'In progress' ? 'statusProg' : ''}`}>
-                        {e.status}
-                      </span>
-                      {isOverdue && <span className="badge urgentOverdue">⚠ Overdue</span>}
-                      {isDueSoon && <span className="badge urgentSoon">🔥 Due Soon</span>}
-                      <span className="countdown">{countdownLabel}</span>
-                    </div>
-
-                    {(e.points !== undefined || e.weight !== undefined) && (
-                      <div className="statsRow">
-                        {e.points !== undefined && (
-                          <div className="stat">
-                            <span className="statLabel">Points</span>
-                            <span className="statValue">{e.points}</span>
+                      return (
+                        <div key={e.id} className={`item ${i % 2 === 0 ? 'left' : 'right'}`}>
+                          <div className={`card ${typeClass}`}>
+                            <div className="cardTop">
+                              <div className="cardTitle">
+                                {typeEmoji(e.type)} {e.course} — {e.title}
+                              </div>
+                              <div className="cardMeta">{e.date}</div>
+                            </div>
+                            <div className="badges">
+                              <span className="badge">{e.type}</span>
+                              <span className={`badge ${e.status === 'Done' ? 'statusDone' : e.status === 'In progress' ? 'statusProg' : ''}`}>
+                                {e.status}
+                              </span>
+                              {isOverdue && <span className="badge urgentOverdue">⚠ Overdue</span>}
+                              {isDueSoon && <span className="badge urgentSoon">🔥 Due Soon</span>}
+                              <span className="countdown">{countdownLabel}</span>
+                            </div>
+                            <div className="cardActions">
+                              <button className="smallBtn" onClick={() => setStatus(e.id, 'In progress')}>In progress</button>
+                              <button className="smallBtn" onClick={() => toggleStatus(e.id, e.status)}>
+                                {e.status === 'Done' ? 'Undo' : 'Done'}
+                              </button>
+                              <button className="smallBtn danger" onClick={() => removeEvent(e.id)}>Delete</button>
+                            </div>
                           </div>
-                        )}
-                        {e.weight !== undefined && (
-                          <div className="stat">
-                            <span className="statLabel">Weight</span>
-                            <span className="statValue">{e.weight}%</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              ))
+            ) : (
+              filteredEvents.map((e, i) => {
+                const { label: countdownLabel, daysAway } = getRelativeDate(e.date);
+                const typeClass = typeToClass(e.type);
+                const isOverdue = daysAway < 0 && e.status !== 'Done';
+                const isDueSoon = daysAway >= 0 && daysAway <= 3 && e.status !== 'Done';
 
-                    <div className="cardActions">
-                      <button className="smallBtn" onClick={() => setStatus(e.id, 'In progress')}>
-                        In progress
-                      </button>
-                      <button className="smallBtn" onClick={() => toggleStatus(e.id, e.status)}>
-                        {e.status === 'Done' ? 'Undo' : 'Done'}
-                      </button>
-                      <button className="smallBtn danger" onClick={() => removeEvent(e.id)}>
-                        Delete
-                      </button>
+                return (
+                  <div key={e.id} className={`item ${i % 2 === 0 ? 'left' : 'right'}`}>
+                    <div className={`card ${typeClass}`}>
+                      <div className="cardTop">
+                        <div className="cardTitle">{typeEmoji(e.type)} {e.course} — {e.title}</div>
+                        <div className="cardMeta">{e.date}</div>
+                      </div>
+                      <div className="badges">
+                        <span className="badge">{e.type}</span>
+                        <span className={`badge ${e.status === 'Done' ? 'statusDone' : e.status === 'In progress' ? 'statusProg' : ''}`}>
+                          {e.status}
+                        </span>
+                        {isOverdue && <span className="badge urgentOverdue">⚠ Overdue</span>}
+                        {isDueSoon && <span className="badge urgentSoon">🔥 Due Soon</span>}
+                        <span className="countdown">{countdownLabel}</span>
+                      </div>
+                      <div className="cardActions">
+                        <button className="smallBtn" onClick={() => setStatus(e.id, 'In progress')}>In progress</button>
+                        <button className="smallBtn" onClick={() => toggleStatus(e.id, e.status)}>
+                          {e.status === 'Done' ? 'Undo' : 'Done'}
+                        </button>
+                        <button className="smallBtn danger" onClick={() => removeEvent(e.id)}>Delete</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         )}
       </section>

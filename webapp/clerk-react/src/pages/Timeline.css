@@ -265,6 +265,49 @@ body {
   overflow: hidden;
 }
 
+.monthGroup {
+  margin-bottom: 24px;
+}
+
+.monthLabel {
+  list-style: none; /* remove default arrow */
+  display: block;
+  text-align: center;
+  margin: 16px 0 24px 0;
+  cursor: pointer;
+  position: relative;
+  z-index: 5;
+}
+
+.monthLabel::-webkit-details-marker {
+  display: none;
+}
+
+.monthLabelText {
+  display: inline-block;
+  background: rgba(255, 91, 204, 0.12);
+  border: 1px solid rgba(255, 91, 204, 0.3);
+  color: #ff9ce4;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.monthLabel:hover .monthLabelText {
+  transform: translateY(-2px);
+  background: rgba(255, 91, 204, 0.18);
+}
+
+.monthContent {
+  position: relative;
+}
+
 .timeline {
   position: relative;
   padding: 8px 0;
