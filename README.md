@@ -1,4 +1,4 @@
-[Locked In Logo] (Locked_In.png)
+![Locked In Logo](Locked-In.png)
 
 Welcome to our project for HackAI 2026! 
 
