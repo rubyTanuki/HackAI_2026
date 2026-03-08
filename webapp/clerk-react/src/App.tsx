@@ -4,6 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist'
 import mammoth from 'mammoth'
 import './App.css'
 import TimelineDashboard from './pages/TimelineDashboard'
+import MatchTest from './pages/MatchTest'
 
 // Setup PDF worker for Vite
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -24,8 +25,12 @@ function App() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [hasUploaded, setHasUploaded] = useState(false);
-  const [view, setView] = useState<'upload' | 'timeline'>('upload');
+  const [view, setView] = useState<'upload' | 'timeline' | 'match'>('upload');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (window.location.hash === '#match') setView('match');
+  }, []);
 
   // Effect to process files whenever filesToUpload changes and there's work to do
   useEffect(() => {
@@ -239,7 +244,9 @@ function App() {
 
       {/* Main App Content - Only visible if logged in */}
       <Show when="signed-in">
-        {view === 'timeline' ? (
+        {view === 'match' ? (
+          <MatchTest />
+        ) : view === 'timeline' ? (
           <TimelineDashboard view={view} />
         ) : (
           <>
