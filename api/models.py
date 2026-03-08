@@ -3,6 +3,12 @@ from typing import List
 
 class Deadline(BaseModel):
     course: str
+    course_name: str | None = None
+    course_prefix: str | None = None
+    course_code: str | None = None
+    section_number: str | None = None
+    professor_first_name: str | None = None
+    professor_last_name: str | None = None
     title: str
     type: str
     due_date: str

@@ -10,7 +10,6 @@ import os
 # from models import Deadline
 
 class Deadline(BaseModel):
-    course: str = Field(description="Course name (just the number and school, e.g. CS2414, not the full name)")
     title: str = Field(description="Title of the deadline")
     type: str = Field(description="Type of the deadline (e.g. Homework, Exam, Project)")
     due_date: str = Field(description="Due date in YYYY-MM-DD format")
@@ -18,6 +17,12 @@ class Deadline(BaseModel):
     weight: float = Field(description="Weight of the deadline (default to 1.0 if not specified)")
 
 class Syllabus(BaseModel):
+    course_prefix: str = Field(description="Course prefix (e.g. MATH, CS, HIST)")
+    course_code: str = Field(description="Course code/number (e.g. 3345, 2414)")
+    section_number: str = Field(description="Section number (e.g. 004, 501)")
+    course_name: str = Field(description="Course name (e.g. Discrete Mathematics, Calculus II)")
+    professor_first_name: str = Field(description="Professor's first name")
+    professor_last_name: str = Field(description="Professor's last name")
     deadlines: List[Deadline] = Field(description="List of deadlines extracted from the syllabus")
 
 class GeminiClient:
@@ -29,15 +34,15 @@ class GeminiClient:
         return await asyncio.gather(*[self.parse_syllabus(syllabus) for syllabus in syllabi])
 
     async def parse_syllabus(self, syllabus: str) -> dict:
-        model_name = "gemini-2.5-flash"
+        model_name = "gemini-2.5-pro"
 
         system_prompt = """You are a helpful assistant that parses syllabi and extracts deadlines.
         Extract from the syllabus every single assignment, exam, quiz, project, etc. that is due.
         If the assignment is recurring, such as a weekly homework assignment, include all the recurrances seperately as individual 'due dates'.
         Assume the first day of class was January 20th, 2026.
         DO NOT MISS ANY ASSIGNMENTS. A CLASS WILL NOT ONLY HAVE EXAMS.
+        Identify the course prefix, course code, section number, full course name, and the professor's first and last name. Attach them to the response object along with the deadlines for all assignments.
         Return the deadlines in JSON format with the following fields:
-        course: str
         title: str
         type: str
         due_date: str

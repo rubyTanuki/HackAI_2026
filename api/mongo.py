@@ -8,3 +8,4 @@ if not MONGODB_URL:
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client.LockedIn
 users_collection = db.users
+syllabi_collection = db.syllabi
