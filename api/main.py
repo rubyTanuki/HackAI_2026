@@ -9,9 +9,10 @@ load_dotenv()
 
 import hashlib
 import requests
+from bson import ObjectId
 from clerk import verify_token
-from mongo import users_collection, syllabi_collection
-from models import TimelineRequest, TimelineResponse, Deadline
+from mongo import users_collection, syllabi_collection, matches_collection
+from models import TimelineRequest, TimelineResponse, Deadline, MatchQueueRequest, MatchSubmitRequest
 from gemini import GeminiClient
 
 app = FastAPI()
@@ -211,4 +212,176 @@ async def study_plan_endpoint(user_id: str = Depends(verify_token)):
 
     # return study plan
     return study_plan_obj
+
+@app.post("/match/queue")
+async def match_queue_endpoint(request: MatchQueueRequest, user_id: str = Depends(verify_token)):
+    # Look for someone waiting in the same class
+    match = await matches_collection.find_one({
+        "status": "waiting",
+        "course_prefix": request.course_prefix,
+        "course_code": request.course_code
+    })
+    
+    if match:
+        if match["player1"] == user_id:
+            return {"match_id": str(match["_id"]), "status": "waiting"}
+            
+        await matches_collection.update_one(
+            {"_id": match["_id"]},
+            {"$set": {"player2": user_id, "status": "in_progress"}}
+        )
+        return {"match_id": str(match["_id"]), "status": "in_progress"}
+        
+    # No one waiting, create a new match lobby
+    new_match = await matches_collection.insert_one({
+        "status": "waiting",
+        "course_prefix": request.course_prefix,
+        "course_code": request.course_code,
+        "player1": user_id,
+        "player2": None,
+        "player1_score": None,
+        "player2_score": None,
+        "quiz_data": None
+    })
+    return {"match_id": str(new_match.inserted_id), "status": "waiting"}
+
+@app.delete("/match/{match_id}")
+async def match_abort_endpoint(match_id: str, user_id: str = Depends(verify_token)):
+    try:
+        match = await matches_collection.find_one({"_id": ObjectId(match_id)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid match ID format")
+        
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+        
+    if match["status"] != "waiting":
+        raise HTTPException(status_code=400, detail="Cannot abort a match that has already started")
+        
+    if match["player1"] != user_id:
+        raise HTTPException(status_code=403, detail="Not the host of this match")
+        
+    await matches_collection.delete_one({"_id": ObjectId(match_id)})
+    return {"message": "Match aborted and removed from queue"}
+
+@app.get("/match/{match_id}/status")
+async def match_status_endpoint(match_id: str, user_id: str = Depends(verify_token)):
+    match = await matches_collection.find_one({"_id": ObjectId(match_id)})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+        
+    return {
+        "status": match["status"],
+        "player1": match["player1"],
+        "player2": match.get("player2")
+    }
+
+@app.get("/match/{match_id}/quiz")
+async def match_quiz_endpoint(match_id: str, user_id: str = Depends(verify_token)):
+    match = await matches_collection.find_one({"_id": ObjectId(match_id)})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+        
+    if match.get("quiz_data"):
+        return match["quiz_data"]
+        
+    # PLACEHOLDER GEMINI CALL
+    # For now, just generate a dummy quiz and save it so both players get the SAME quiz
+    placeholder_quiz = {
+        "questions": [
+            {
+                "question": f"What is a core concept of {match.get('course_prefix')} {match.get('course_code')}?",
+                "options": ["A", "B", "C", "D"],
+                "answer": "A"
+            }
+        ]
+    }
+    
+    await matches_collection.update_one(
+        {"_id": ObjectId(match_id)},
+        {"$set": {"quiz_data": placeholder_quiz}}
+    )
+    
+    return placeholder_quiz
+
+@app.post("/match/{match_id}/submit")
+async def match_submit_endpoint(match_id: str, request: MatchSubmitRequest, user_id: str = Depends(verify_token)):
+    match = await matches_collection.find_one({"_id": ObjectId(match_id)})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+        
+    update_data = {}
+    if match["player1"] == user_id:
+        update_data["player1_score"] = request.score
+    elif match.get("player2") == user_id:
+        update_data["player2_score"] = request.score
+    else:
+        raise HTTPException(status_code=403, detail="Not a player in this match")
+        
+    await matches_collection.update_one(
+        {"_id": ObjectId(match_id)},
+        {"$set": update_data}
+    )
+    
+    # Check if both players have now finished
+    match = await matches_collection.find_one({"_id": ObjectId(match_id)})
+    if match.get("player1_score") is not None and match.get("player2_score") is not None:
+        await matches_collection.update_one(
+            {"_id": ObjectId(match_id)},
+            {"$set": {"status": "completed"}}
+        )
+        
+    return {"message": "Score submitted"}
+
+@app.get("/match/{match_id}/results")
+async def match_results_endpoint(match_id: str, user_id: str = Depends(verify_token)):
+    match = await matches_collection.find_one({"_id": ObjectId(match_id)})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+        
+    if match["status"] != "completed":
+        return {"status": "waiting_for_opponent"}
+        
+    p1_score = match.get("player1_score", 0)
+    p2_score = match.get("player2_score", 0)
+    
+    winner = "tie"
+    if p1_score > p2_score:
+        winner = match["player1"]
+    elif p2_score > p1_score:
+        winner = match["player2"]
+        
+    return {
+        "status": "completed",
+        "your_score": p1_score if match["player1"] == user_id else p2_score,
+        "opponent_score": p2_score if match["player1"] == user_id else p1_score,
+        "winner": winner,
+        "is_winner": winner == user_id
+    }
+
+@app.get("/match/{match_id}/rank")
+async def match_rank_endpoint(match_id: str, user_id: str = Depends(verify_token)):
+    match = await matches_collection.find_one({"_id": ObjectId(match_id)})
+    if not match or match["status"] != "completed":
+        return {"rank_change": 0}
+        
+    p1_score = match.get("player1_score", 0)
+    p2_score = match.get("player2_score", 0)
+    
+    if p1_score == p2_score:
+        change = 5
+    else:
+        is_p1 = match["player1"] == user_id
+        if (is_p1 and p1_score > p2_score) or (not is_p1 and p2_score > p1_score):
+            change = 15
+        else:
+            change = -10
+            
+    # update actual user leaderboard rank
+    await users_collection.update_one(
+        {"_id": user_id},
+        {"$inc": {"leaderboard_rank": change}}
+    )
+    
+    return {"rank_change": change}
     
